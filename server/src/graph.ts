@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import fs from "node:fs";
 import type { Proximity, ScoreRequest, ValidateStepResponse } from "../../shared/types.js";
 import {
   BLOCKED_PUZZLE_LEMMAS,
@@ -22,7 +23,10 @@ export class GraphService {
   private hasDegreeColumn = false;
 
   constructor(dbPath: string = DB_PATH) {
-    this.db = new Database(dbPath, { readonly: true });
+    if (!fs.existsSync(dbPath)) {
+      throw new Error(`Graph database not found at ${dbPath}`);
+    }
+    this.db = new Database(dbPath, { readonly: true, fileMustExist: true });
     this.initCaches();
   }
 

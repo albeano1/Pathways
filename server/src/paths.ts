@@ -6,10 +6,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveRepoRoot(): string {
   const candidates = [
-    path.resolve(__dirname, "../.."),
-    path.resolve(__dirname, "../../.."),
     process.cwd(),
     path.resolve(process.cwd(), ".."),
+    path.resolve(__dirname, "../.."),
+    path.resolve(__dirname, "../../.."),
   ];
 
   for (const candidate of candidates) {

@@ -352,7 +352,7 @@ export function useGame() {
       const trunkLen = path.length;
       const result = await validateStep(previous, trimmed, puzzle.end, explorePath);
 
-      if (!result.valid) {
+      if (result.valid !== true) {
         if (puzzleStartedAt.current === null) {
           startTimer();
         }

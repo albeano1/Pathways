@@ -11,23 +11,46 @@ import type {
   ValidateStepResponse,
 } from "../../shared/types.js";
 import { GraphService } from "./graph.js";
-import { CLIENT_DIST } from "./paths.js";
+import { CLIENT_DIST, DB_PATH } from "./paths.js";
 import { PuzzleService } from "./puzzles.js";
 
+function createServices() {
+  let graph: GraphService | undefined;
+  let puzzles: PuzzleService | undefined;
+
+  const get = () => {
+    if (!graph) {
+      graph = new GraphService();
+      puzzles = new PuzzleService(graph);
+    }
+    return { graph, puzzles: puzzles! };
+  };
+
+  return {
+    get,
+    getWordCount: () => get().graph.getWordCount(),
+  };
+}
+
 export function createApp(options: { serveClient?: boolean } = {}) {
-  const graph = new GraphService();
-  const puzzles = new PuzzleService(graph);
+  const services = createServices();
+  const { get: getServices } = services;
 
   const app = express();
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: "32kb" }));
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, words: graph.getWordCount() });
+    try {
+      res.json({ ok: true, words: services.getWordCount(), dbPath: DB_PATH });
+    } catch (error) {
+      res.status(503).json({ ok: false, error: (error as Error).message, dbPath: DB_PATH });
+    }
   });
 
   app.get("/api/puzzle", (req, res) => {
     try {
+      const { graph, puzzles } = getServices();
       const start = String(req.query.start ?? "").trim().toLowerCase();
       const end = String(req.query.end ?? "").trim().toLowerCase();
 
@@ -84,35 +107,56 @@ export function createApp(options: { serveClient?: boolean } = {}) {
   });
 
   app.post("/api/validate-step", (req, res) => {
-    const { from, to, end, path: explorePath } = req.body as ValidateStepRequest;
-    if (!from || !to || !end) {
-      res.status(400).json({ valid: false, error: "Missing from, to, or end word" });
-      return;
-    }
+    try {
+      const { from, to, end, path: explorePath } = req.body as ValidateStepRequest;
+      if (!from || !to || !end) {
+        res.status(400).json({ valid: false, error: "Missing from, to, or end word" });
+        return;
+      }
 
-    const response: ValidateStepResponse = graph.analyzeStep(from, to, end, explorePath ?? []);
-    res.json(response);
+      const { graph } = getServices();
+      const response: ValidateStepResponse = graph.analyzeStep(from, to, end, explorePath ?? []);
+      res.json(response);
+    } catch (error) {
+      res.status(503).json({
+        valid: false,
+        failureType: "not_in_graph",
+        error: (error as Error).message,
+      });
+    }
   });
 
   app.post("/api/score", (req, res) => {
-    const { start, end, path: playerPath, totalGuesses, wrongGuesses, solveTimeMs } =
-      req.body as ScoreRequest;
-    if (!start || !end || !Array.isArray(playerPath)) {
-      res.status(400).json({ valid: false, error: "Invalid score request" });
-      return;
-    }
+    try {
+      const { start, end, path: playerPath, totalGuesses, wrongGuesses, solveTimeMs } =
+        req.body as ScoreRequest;
+      if (!start || !end || !Array.isArray(playerPath)) {
+        res.status(400).json({ valid: false, error: "Invalid score request" });
+        return;
+      }
 
-    const result = graph.scorePath(start, end, playerPath, {
-      totalGuesses,
-      wrongGuesses,
-      solveTimeMs,
-    });
-    const response: ScoreResponse = result;
-    res.json(response);
+      const { graph } = getServices();
+      const result = graph.scorePath(start, end, playerPath, {
+        totalGuesses,
+        wrongGuesses,
+        solveTimeMs,
+      });
+      const response: ScoreResponse = result;
+      res.json(response);
+    } catch (error) {
+      res.status(503).json({
+        valid: false,
+        playerHops: Array.isArray(req.body?.path) ? req.body.path.length - 1 : 0,
+        optimalHops: 0,
+        error: (error as Error).message,
+      });
+    }
   });
 
   app.get("/api/hint", (req, res) => {
-    const start = String(req.query.start ?? "");
+    try {
+      const { graph } = getServices();
+      const start = String(req.query.start ?? "");
     const end = String(req.query.end ?? "");
     if (!start || !end) {
       res.status(400).json({ error: "Missing start or end" });
@@ -133,6 +177,9 @@ export function createApp(options: { serveClient?: boolean } = {}) {
       optimalHops: optimalPath.length - 1,
     };
     res.json(response);
+    } catch (error) {
+      res.status(503).json({ error: (error as Error).message });
+    }
   });
 
   if (options.serveClient) {
@@ -144,5 +191,5 @@ export function createApp(options: { serveClient?: boolean } = {}) {
     });
   }
 
-  return { app, wordCount: graph.getWordCount() };
+  return { app, getWordCount: services.getWordCount };
 }

@@ -1,7 +1,7 @@
 import { isNextPuzzleDate } from "../../shared/dailyPuzzle";
 import { formatSolveTime } from "./components/formatSolveTime";
 import type { ScoreResponse } from "../../shared/types";
-import { APP_NAME } from "../../shared/appName";
+import { APP_NAME, APP_URL } from "../../shared/appName";
 
 const STATS_KEY = "connections-solve-stats";
 const STREAK_KEY = "pathways-win-streak";
@@ -164,6 +164,8 @@ export function buildShareText(options: {
   if (perfectPath) {
     lines.push("Perfect path!");
   }
+
+  lines.push(APP_URL);
 
   return lines.join("\n");
 }

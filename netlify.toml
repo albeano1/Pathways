@@ -13,6 +13,12 @@
 
 [functions.api]
   included_files = ["data/graph.db", "server/dist/**"]
+  timeout = 26
+  memory = 1024
+
+[functions.api.environment]
+  GRAPH_DB_PATH = "./data/graph.db"
+  NODE_OPTIONS = "--max-old-space-size=768"
 
 [[redirects]]
   from = "/api/*"

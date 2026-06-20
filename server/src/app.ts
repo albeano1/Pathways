@@ -9,11 +9,13 @@ import type {
   ScoreResponse,
   ValidateStepRequest,
   ValidateStepResponse,
+  WordInfoResponse,
 } from "../../shared/types.js";
 import { GraphService } from "./graph.js";
 import { CLIENT_DIST } from "./paths.js";
 import { getDbPath } from "./bootstrapGraphDb.js";
 import { PuzzleService } from "./puzzles.js";
+import { fetchDictionaryEntry } from "./dictionary.js";
 
 function createServices() {
   let graph: GraphService | undefined;
@@ -156,6 +158,38 @@ export function createApp(options: { serveClient?: boolean } = {}) {
         optimalHops: 0,
         error: (error as Error).message,
       });
+    }
+  });
+
+  app.get("/api/word-info", async (req, res) => {
+    try {
+      const { graph } = getServices();
+      const word = String(req.query.word ?? "").trim().toLowerCase();
+      if (!word) {
+        res.status(400).json({ error: "Missing word" });
+        return;
+      }
+
+      const lemma = graph.resolveLemma(word);
+      if (!lemma) {
+        const response: WordInfoResponse = {
+          lemma: word,
+          inGraph: false,
+        };
+        res.json(response);
+        return;
+      }
+
+      const dictionary = await fetchDictionaryEntry(lemma);
+      const response: WordInfoResponse = {
+        lemma,
+        inGraph: true,
+        definition: dictionary?.definition,
+        partOfSpeech: dictionary?.partOfSpeech,
+      };
+      res.json(response);
+    } catch (error) {
+      res.status(503).json({ error: (error as Error).message });
     }
   });
 

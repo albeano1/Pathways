@@ -1,9 +1,11 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ConfirmedBranch, ConfirmedEdge, RejectedBranch } from "../../../shared/types";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTreeScale } from "../hooks/useTreeScale";
 import { GoalBar } from "./GoalBar";
 import { TreeCanvas } from "./TreeCanvas";
 import { buildRenderTree } from "./treeModel";
+import { nodeBottomY } from "./treeGeometry";
 import {
   CANVAS_PAD_TOP,
   computeBranchEdgeSpacings,
@@ -24,6 +26,7 @@ interface PathTreeProps {
   hopsToEnd: number;
   initialHops: number;
   complete?: boolean;
+  onWordSelect?: (word: string) => void;
 }
 
 export function PathTree({
@@ -38,10 +41,12 @@ export function PathTree({
   hopsToEnd,
   initialHops,
   complete,
+  onWordSelect,
 }: PathTreeProps) {
   const pathTreeRef = useRef<HTMLDivElement>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
   const goalBarRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMediaQuery("(max-width: 720px)");
 
   const reachedGoal = path.length > 0 && path[path.length - 1] === end;
   const won = complete === true || reachedGoal;
@@ -59,9 +64,10 @@ export function PathTree({
         hopsToEnd,
         initialHops,
         won,
-        activeBranchId
+        activeBranchId,
+        isMobile
       ),
-    [path, confirmedEdges, panelTreeBudget, hopsToEnd, initialHops, won, activeBranchId]
+    [path, confirmedEdges, panelTreeBudget, hopsToEnd, initialHops, won, activeBranchId, isMobile]
   );
 
   const branchEdgeSpacings = useMemo(() => {
@@ -72,11 +78,12 @@ export function PathTree({
         panelTreeBudget,
         initialHops,
         won,
-        activeBranchId === branch.id
+        activeBranchId === branch.id,
+        isMobile
       );
     }
     return map;
-  }, [confirmedBranches, panelTreeBudget, initialHops, won, activeBranchId]);
+  }, [confirmedBranches, panelTreeBudget, initialHops, won, activeBranchId, isMobile]);
 
   const root = useMemo(
     () =>
@@ -105,7 +112,7 @@ export function PathTree({
   );
 
   const canvasSize = treeCanvasSize(layout);
-  const scale = useTreeScale(treeAreaRef, canvasSize);
+  const scale = useTreeScale(treeAreaRef, canvasSize, { widthOnly: isMobile });
 
   useLayoutEffect(() => {
     const panel = pathTreeRef.current;
@@ -131,8 +138,35 @@ export function PathTree({
     return () => observer.disconnect();
   }, [goalGapHeight]);
 
+  useLayoutEffect(() => {
+    if (!isMobile) return;
+    const treeArea = treeAreaRef.current;
+    if (!treeArea) return;
+
+    const focus =
+      layout.nodes.find((node) => node.variant === "current" || node.variant === "win-tip") ??
+      layout.nodes.find((node) => node.word === currentWord);
+    if (!focus) return;
+
+    const focusY = (nodeBottomY(focus) + CANVAS_PAD_TOP) * scale;
+    const nextTop = Math.max(0, focusY - treeArea.clientHeight * 0.35);
+    const delta = Math.abs(treeArea.scrollTop - nextTop);
+    if (delta > 8) {
+      treeArea.scrollTo({ top: nextTop, behavior: "smooth" });
+    }
+  }, [currentWord, isMobile, layout.nodes, scale]);
+
   return (
-    <div className={["path-tree", won ? "path-tree--won" : ""].filter(Boolean).join(" ")} ref={pathTreeRef}>
+    <div
+      className={[
+        "path-tree",
+        won ? "path-tree--won" : "",
+        isMobile ? "path-tree--mobile-scroll" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      ref={pathTreeRef}
+    >
       <div className="path-tree__tree-area" ref={treeAreaRef}>
         <div
           className="path-tree__scale-wrap"
@@ -149,13 +183,13 @@ export function PathTree({
               transform: `scale(${scale})`,
             }}
           >
-            <TreeCanvas layout={layout} />
+            <TreeCanvas layout={layout} onWordSelect={onWordSelect} />
           </div>
         </div>
       </div>
 
       <div className="path-tree__goal-foot">
-        <GoalBar ref={goalBarRef} word={end} complete={won} />
+        <GoalBar ref={goalBarRef} word={end} complete={won} onWordSelect={onWordSelect} />
       </div>
     </div>
   );

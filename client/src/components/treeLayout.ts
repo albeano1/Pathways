@@ -588,7 +588,8 @@ export function computeLinearEdgeSpacings(
   initialHops: number,
   won: boolean,
   isActiveTip: boolean,
-  forkVariant: PathNodeVariant = "start"
+  forkVariant: PathNodeVariant = "start",
+  scrollMode = false
 ): number[] {
   if (chainWords.length <= 1 || chainEdges.length === 0) {
     return [];
@@ -644,14 +645,16 @@ export function computeLinearEdgeSpacings(
 
   const lastChildHops =
     edgesForSpacing[edgesForSpacing.length - 1]?.hopsToEnd ?? initialHops;
-  const compressedTops = compressIfOverflow(
-    fittedTops,
-    nodeHeights,
-    startBottom,
-    maxTipBottom,
-    stubIndices,
-    lastChildHops
-  );
+  const compressedTops = scrollMode
+    ? enforceMonotonicTops(fittedTops, nodeHeights, startBottom, stubIndices)
+    : compressIfOverflow(
+        fittedTops,
+        nodeHeights,
+        startBottom,
+        maxTipBottom,
+        stubIndices,
+        lastChildHops
+      );
 
   const spacings: number[] = [];
   parentWordBottom = startBottom;
@@ -674,7 +677,8 @@ export function computeTrunkEdgeSpacings(
   _hopsToEnd: number,
   initialHops: number,
   won: boolean,
-  activeBranchId?: string
+  activeBranchId?: string,
+  scrollMode = false
 ): number[] {
   return computeLinearEdgeSpacings(
     path,
@@ -683,7 +687,8 @@ export function computeTrunkEdgeSpacings(
     initialHops,
     won,
     !activeBranchId,
-    "start"
+    "start",
+    scrollMode
   );
 }
 
@@ -692,7 +697,8 @@ export function computeBranchEdgeSpacings(
   panelTreeBudget: number,
   initialHops: number,
   won: boolean,
-  isActiveTip: boolean
+  isActiveTip: boolean,
+  scrollMode = false
 ): number[] {
   const forkVariant = branch.fromTrunkIndex === 0 ? "start" : "confirmed";
   return computeLinearEdgeSpacings(
@@ -702,7 +708,8 @@ export function computeBranchEdgeSpacings(
     initialHops,
     won,
     isActiveTip,
-    forkVariant
+    forkVariant,
+    scrollMode
   );
 }
 

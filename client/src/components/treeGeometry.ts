@@ -1,37 +1,34 @@
 import type { PathNodeVariant } from "./PathNode";
 import type { PositionedNode } from "./treeLayout";
 
-const HINT_H = 18;
-const NODE_GAP = 5;
 /** Matches .path-node__word padding, border, and text box from CSS. */
 const WORD_PILL_H = 56;
+/** Start / goal pills with an inline label. */
+const LABELED_PILL_H = 68;
 /** Extra clearance for .path-node--current / --win-tip box-shadow glow. */
 const ACTIVE_GLOW_H = 27;
 
 function wordHeight(variant: PathNodeVariant): number {
   if (variant === "rejected") return 44;
   if (variant === "current" || variant === "win-tip") return WORD_PILL_H + ACTIVE_GLOW_H;
+  if (variant === "start" || variant === "target" || variant === "target-ghost") {
+    return LABELED_PILL_H;
+  }
   return WORD_PILL_H;
 }
 
-function hasHint(variant: PathNodeVariant): boolean {
-  return variant === "start" || variant === "target" || variant === "target-ghost";
-}
-
 export function visualHeightForVariant(variant: PathNodeVariant): number {
-  const hint = hasHint(variant) ? HINT_H + NODE_GAP : 0;
-  return hint + wordHeight(variant);
+  return wordHeight(variant);
 }
 
 /** Y offset from node top to the bottom of the word pill (edge leaves here). */
 export function nodeBottomY(node: PositionedNode): number {
-  const hint = hasHint(node.variant) ? HINT_H + NODE_GAP : 0;
-  return node.y + hint + wordHeight(node.variant);
+  return node.y + wordHeight(node.variant);
 }
 
 /** Y offset from node top to the top of the word pill (edge arrives here). */
 export function nodeWordTopY(node: PositionedNode): number {
-  return node.y + (hasHint(node.variant) ? HINT_H + NODE_GAP : 0);
+  return node.y;
 }
 
 export interface EdgeAnchors {

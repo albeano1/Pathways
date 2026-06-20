@@ -9,6 +9,7 @@ import { PathNode } from "./PathNode";
 
 interface TreeCanvasProps {
   layout: TreeLayout;
+  onWordSelect?: (word: string) => void;
 }
 
 function edgeColor(edge: PositionedEdge): string {
@@ -16,7 +17,7 @@ function edgeColor(edge: PositionedEdge): string {
   return edge.relation ? relationColor(edge.relation) : "#64748b";
 }
 
-export const TreeCanvas = memo(function TreeCanvas({ layout }: TreeCanvasProps) {
+export const TreeCanvas = memo(function TreeCanvas({ layout, onWordSelect }: TreeCanvasProps) {
   const width = layout.width + CANVAS_PAD_X * 2;
   const height = layoutTreeBottom(layout.nodes) + CANVAS_PAD_TOP + CANVAS_PAD_BOTTOM;
 
@@ -92,7 +93,12 @@ export const TreeCanvas = memo(function TreeCanvas({ layout }: TreeCanvasProps) 
             } as CSSProperties
           }
         >
-          <PathNode word={node.word} variant={node.variant} isNew={node.isNew} />
+          <PathNode
+            word={node.word}
+            variant={node.variant}
+            isNew={node.isNew}
+            onSelect={onWordSelect}
+          />
         </div>
       ))}
     </div>

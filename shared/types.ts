@@ -97,3 +97,11 @@ export interface HintResponse {
   optimalHops?: number;
   error?: string;
 }
+
+export interface WordInfoResponse {
+  lemma: string;
+  inGraph: boolean;
+  definition?: string;
+  partOfSpeech?: string;
+  error?: string;
+}

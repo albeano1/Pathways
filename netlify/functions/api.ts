@@ -1,6 +1,29 @@
 import serverless from "serverless-http";
 import { createApp } from "../../server/dist/server/src/app.js";
 
-const { app } = createApp({ serveClient: false });
+let serverlessHandler: ReturnType<typeof serverless> | undefined;
 
-export const handler = serverless(app);
+function getHandler() {
+  if (!serverlessHandler) {
+    const { app } = createApp({ serveClient: false });
+    serverlessHandler = serverless(app);
+  }
+  return serverlessHandler;
+}
+
+export const handler = async (event: unknown, context: unknown) => {
+  try {
+    return await getHandler()(event, context);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Server error";
+    return {
+      statusCode: 503,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        valid: false,
+        failureType: "not_in_graph",
+        error: message,
+      }),
+    };
+  }
+};

@@ -1,0 +1,30 @@
+[build]
+  command = "npm run build:netlify"
+  publish = "client/dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NODE_OPTIONS = "--max-old-space-size=4096"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["better-sqlite3"]
+
+[functions.api]
+  included_files = ["data/graph.db", "server/dist/**"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/daily-puzzle.json"
+  [headers.values]
+    Cache-Control = "public, max-age=300, stale-while-revalidate=86400"

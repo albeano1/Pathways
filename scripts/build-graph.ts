@@ -144,7 +144,8 @@ async function buildDatabase(selectedWords: Set<string>): Promise<void> {
     CREATE TABLE words (
       id INTEGER PRIMARY KEY,
       lemma TEXT UNIQUE NOT NULL,
-      label TEXT NOT NULL
+      label TEXT NOT NULL,
+      degree INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE edges (
       from_id INTEGER NOT NULL,
@@ -154,6 +155,7 @@ async function buildDatabase(selectedWords: Set<string>): Promise<void> {
     );
     CREATE INDEX idx_edges_from ON edges(from_id);
     CREATE INDEX idx_edges_to ON edges(to_id);
+    CREATE INDEX idx_words_degree ON words(degree);
   `);
 
   const insertWord = db.prepare(
@@ -212,7 +214,21 @@ async function buildDatabase(selectedWords: Set<string>): Promise<void> {
   const wordCount = (db.prepare("SELECT COUNT(*) AS count FROM words").get() as { count: number }).count;
   console.log(`Database built: ${wordCount.toLocaleString()} words, ${edgeCount.toLocaleString()} directed edges.`);
 
+  db.exec(`
+    UPDATE words SET degree = (
+      SELECT COUNT(*) FROM edges e
+      WHERE e.from_id = words.id OR e.to_id = words.id
+    )
+  `);
+  db.exec("ANALYZE");
   db.close();
+
+  const optimized = new Database(DB_PATH);
+  optimized.exec("VACUUM");
+  optimized.close();
+
+  const sizeMb = (fs.statSync(DB_PATH).size / (1024 * 1024)).toFixed(1);
+  console.log(`Optimized database size: ${sizeMb} MB`);
 }
 
 async function main(): Promise<void> {
@@ -225,10 +241,11 @@ async function main(): Promise<void> {
 
     const db = new Database(DB_PATH);
     db.exec(`
-      CREATE TABLE words (id INTEGER PRIMARY KEY, lemma TEXT UNIQUE NOT NULL, label TEXT NOT NULL);
+      CREATE TABLE words (id INTEGER PRIMARY KEY, lemma TEXT UNIQUE NOT NULL, label TEXT NOT NULL, degree INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE edges (from_id INTEGER NOT NULL, to_id INTEGER NOT NULL, relation TEXT NOT NULL, weight REAL NOT NULL);
       CREATE INDEX idx_edges_from ON edges(from_id);
       CREATE INDEX idx_edges_to ON edges(to_id);
+      CREATE INDEX idx_words_degree ON words(degree);
     `);
 
     const insertWord = db.prepare("INSERT INTO words (lemma, label) VALUES (?, ?)");
@@ -311,6 +328,26 @@ async function main(): Promise<void> {
       insertEdge.run(fromId, toId, relation, 2.0);
       insertEdge.run(toId, fromId, relation, 2.0);
     }
+
+    const lemmas = [...wordIds.keys()].sort();
+    for (let index = 0; index < lemmas.length; index++) {
+      for (let step = 1; step <= 8; step++) {
+        const from = lemmas[index]!;
+        const to = lemmas[(index + step) % lemmas.length]!;
+        if (from === to) continue;
+        const fromId = wordIds.get(from)!;
+        const toId = wordIds.get(to)!;
+        insertEdge.run(fromId, toId, "RelatedTo", 1.0);
+        insertEdge.run(toId, fromId, "RelatedTo", 1.0);
+      }
+    }
+
+    db.exec(`
+      UPDATE words SET degree = (
+        SELECT COUNT(*) FROM edges e
+        WHERE e.from_id = words.id OR e.to_id = words.id
+      )
+    `);
 
     db.close();
     console.log("Mini graph written.");

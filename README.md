@@ -6,7 +6,9 @@ A web game where you connect two related words through a commonsense graph built
 
 - React + Vite frontend
 - Express + SQLite backend
-- ConceptNet 5.7 assertions (local subset)
+- ConceptNet 5.7 assertions (top 20,000 English words by connectivity)
+
+Daily puzzles are generated at runtime from the graph: pick a well-connected start word, then an end word exactly 3–6 hops away along shortest-path layers. Words need degree 8–300, readable length, and skip abstract hubs like "thing" or "person".
 
 ## Setup
 
@@ -44,6 +46,27 @@ npm start
 
 The server serves the built client and API from one port (default 3001).
 
+## Netlify
+
+The repo includes `netlify.toml`. Connect the site to Netlify and deploy from the repo root.
+
+**Build command:** `npm run build:netlify`  
+**Publish directory:** `client/dist`  
+**Functions directory:** `netlify/functions`
+
+Each deploy builds the full ConceptNet graph (~20,000 most-connected English words, ~24MB SQLite database), embeds today's puzzle as a static JSON file, then builds the client and API function. Repeat visits load instantly from browser cache; first visits fetch the static puzzle from the CDN instead of waiting on a cold serverless function.
+
+To speed up later deploys, add a cached path in Netlify:
+
+1. Site configuration → Build & deploy → Build settings
+2. **Cached paths:** `data/assertions.csv.gz`
+
+The CSV is reused across builds; only the graph is rebuilt when the build script changes.
+
+API routes (`/api/puzzle`, `/api/validate-step`, etc.) are rewritten to the `api` function. Check `https://your-site.netlify.app/api/health` after deploy — it should report ~20,000 words.
+
+For local development without the full download, use `npm run build:graph -- --mini`.
+
 ## How to play
 
 1. A new puzzle is available each day at midnight Pacific time.
@@ -68,6 +91,7 @@ Debug a specific pair with `?puzzle=start,end` in the URL.
 
 ## Data files
 
-- `data/graph.db` — generated SQLite graph (gitignored)
+- `data/graph.db` — generated SQLite graph (gitignored; includes a precomputed `degree` column)
+- `data/assertions.csv.gz` — ConceptNet download cache (gitignored)
 
-Run `npm run build:graph` after cloning to create it locally.
+Run `npm run build:graph` after cloning to create the full graph locally. Use `--mini` only for a small offline dev graph without downloading ConceptNet.

@@ -1,0 +1,45 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { getPuzzleDateKey } from "../shared/dailyPuzzle.js";
+import { GraphService } from "../server/src/graph.js";
+import { PuzzleService } from "../server/src/puzzles.js";
+import { DB_PATH } from "../server/src/paths.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "..");
+const OUTPUT_DIR = path.join(ROOT, "client/public");
+const OUTPUT_PATH = path.join(OUTPUT_DIR, "daily-puzzle.json");
+
+async function main(): Promise<void> {
+  if (!fs.existsSync(DB_PATH)) {
+    console.warn("Skipping daily puzzle embed — data/graph.db not found.");
+    return;
+  }
+
+  const puzzleDate = getPuzzleDateKey();
+  const graph = new GraphService();
+  const puzzles = new PuzzleService(graph);
+  const puzzle = puzzles.getDaily(puzzleDate);
+  const publicPuzzle = {
+    id: puzzle.id,
+    start: puzzle.start,
+    end: puzzle.end,
+    optimalHops: puzzle.optimalHops,
+    difficulty: puzzle.difficulty,
+    puzzleDate: puzzle.puzzleDate,
+    nextPuzzleAt: puzzle.nextPuzzleAt,
+  };
+
+  fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+  fs.writeFileSync(OUTPUT_PATH, `${JSON.stringify(publicPuzzle)}\n`);
+
+  console.log(
+    `Embedded daily puzzle for ${puzzleDate}: ${puzzle.start} → ${puzzle.end} (${puzzle.optimalHops} hops)`
+  );
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

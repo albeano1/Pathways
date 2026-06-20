@@ -23,5 +23,7 @@ function resolveRepoRoot(): string {
 
 export const ROOT = resolveRepoRoot();
 export const DATA_DIR = path.join(ROOT, "data");
-export const DB_PATH = path.join(DATA_DIR, "graph.db");
+export const DB_PATH = process.env.GRAPH_DB_PATH
+  ? path.resolve(process.env.GRAPH_DB_PATH)
+  : path.join(DATA_DIR, "graph.db");
 export const CLIENT_DIST = path.join(ROOT, "client/dist");

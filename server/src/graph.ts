@@ -1,5 +1,13 @@
 import Database from "better-sqlite3";
 import type { Proximity, ScoreRequest, ValidateStepResponse } from "../../shared/types.js";
+import {
+  BLOCKED_PUZZLE_LEMMAS,
+  isEligiblePuzzleLemma,
+  MAX_LEMMA_LENGTH,
+  MAX_WORD_DEGREE,
+  MIN_LEMMA_LENGTH,
+  MIN_WORD_DEGREE,
+} from "../../shared/puzzleRules.js";
 import { DB_PATH } from "./paths.js";
 import {
   buildPluralAliasMap,
@@ -11,6 +19,7 @@ export class GraphService {
   private wordIdCache = new Map<string, number>();
   private aliasMap!: Map<string, string>;
   private lemmaSet!: Set<string>;
+  private hasDegreeColumn = false;
 
   constructor(dbPath: string = DB_PATH) {
     this.db = new Database(dbPath, { readonly: true });
@@ -33,6 +42,113 @@ export class GraphService {
       .map((row) => (row as { lemma: string }).lemma);
     this.lemmaSet = new Set(lemmas);
     this.aliasMap = buildPluralAliasMap(lemmas);
+    this.hasDegreeColumn =
+      ((this.db
+        .prepare("SELECT COUNT(*) AS count FROM pragma_table_info('words') WHERE name = 'degree'")
+        .get() as { count: number }).count ?? 0) > 0;
+  }
+
+  getLemmaDegree(lemma: string): number {
+    const id = this.getWordId(lemma);
+    if (id === null) return 0;
+
+    if (this.hasDegreeColumn) {
+      const row = this.db
+        .prepare("SELECT degree FROM words WHERE id = ?")
+        .get(id) as { degree: number } | undefined;
+      return row?.degree ?? 0;
+    }
+
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS degree FROM edges
+         WHERE from_id = ? OR to_id = ?`
+      )
+      .get(id, id) as { degree: number };
+    return row.degree;
+  }
+
+  isEligiblePuzzleEndpoint(lemma: string): boolean {
+    return isEligiblePuzzleLemma(lemma, this.getLemmaDegree(lemma));
+  }
+
+  private eligibleWordSql(alias = "w"): string {
+    if (this.hasDegreeColumn) {
+      return `
+        ${alias}.degree BETWEEN ? AND ?
+        AND length(${alias}.lemma) BETWEEN ? AND ?
+        AND ${alias}.lemma GLOB '[a-z]*'
+        AND ${alias}.lemma NOT GLOB '*[^a-z]*'
+      `;
+    }
+
+    return `
+      (
+        SELECT COUNT(*) FROM edges e
+        WHERE e.from_id = ${alias}.id OR e.to_id = ${alias}.id
+      ) BETWEEN ? AND ?
+      AND length(${alias}.lemma) BETWEEN ? AND ?
+      AND ${alias}.lemma GLOB '[a-z]*'
+      AND ${alias}.lemma NOT GLOB '*[^a-z]*'
+    `;
+  }
+
+  private eligibleBindParams(): [number, number, number, number] {
+    return [MIN_WORD_DEGREE, MAX_WORD_DEGREE, MIN_LEMMA_LENGTH, MAX_LEMMA_LENGTH];
+  }
+
+  private blockedLemmaClause(alias = "w"): { sql: string; params: string[] } {
+    const blocked = [...BLOCKED_PUZZLE_LEMMAS];
+    if (blocked.length === 0) {
+      return { sql: "", params: [] };
+    }
+    return {
+      sql: `AND ${alias}.lemma NOT IN (${blocked.map(() => "?").join(", ")})`,
+      params: blocked,
+    };
+  }
+
+  private getNeighborIds(wordId: number): number[] {
+    const rows = this.db
+      .prepare(
+        `SELECT CASE WHEN from_id = ? THEN to_id ELSE from_id END AS neighbor_id
+         FROM edges WHERE from_id = ? OR to_id = ?`
+      )
+      .all(wordId, wordId, wordId) as Array<{ neighbor_id: number }>;
+    return rows.map((row) => row.neighbor_id);
+  }
+
+  /** Lemmas exactly `hops` steps from `start` along shortest-path layers. */
+  getReachableLemmasAtHopDistance(start: string, hops: number): string[] {
+    const startId = this.getWordId(start);
+    if (startId === null || hops < 1) return [];
+
+    let currentLayer = new Set([startId]);
+    const visited = new Set([startId]);
+
+    for (let depth = 0; depth < hops; depth++) {
+      const nextLayer = new Set<number>();
+      for (const nodeId of currentLayer) {
+        for (const neighborId of this.getNeighborIds(nodeId)) {
+          if (visited.has(neighborId)) continue;
+          visited.add(neighborId);
+          nextLayer.add(neighborId);
+        }
+      }
+      currentLayer = nextLayer;
+      if (currentLayer.size === 0) return [];
+    }
+
+    const lookup = this.db.prepare("SELECT lemma FROM words WHERE id = ?");
+    const lemmas: string[] = [];
+    for (const id of currentLayer) {
+      const row = lookup.get(id) as { lemma: string } | undefined;
+      if (row && this.isEligiblePuzzleEndpoint(row.lemma)) {
+        lemmas.push(row.lemma);
+      }
+    }
+
+    return lemmas.sort();
   }
 
   normalize(word: string): string {
@@ -160,77 +276,35 @@ export class GraphService {
     return path.length - 1;
   }
 
-  /** Pick a random lemma with at least `minDegree` graph connections. */
-  getRandomLemma(minDegree = 2): string | null {
-    const row = this.db
-      .prepare(
-        `SELECT w.lemma
-         FROM words w
-         WHERE (
-           SELECT COUNT(*) FROM edges e
-           WHERE e.from_id = w.id OR e.to_id = w.id
-         ) >= ?
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get(minDegree) as { lemma: string } | undefined;
-
-    return row?.lemma ?? null;
-  }
-
-  /** Pick two distinct random lemmas suitable for puzzle generation. */
-  getRandomLemmaPair(minDegree = 2): [string, string] | null {
-    const row = this.db
-      .prepare(
-        `SELECT w1.lemma AS start, w2.lemma AS end
-         FROM words w1
-         JOIN words w2 ON w2.id != w1.id
-         WHERE (
-           SELECT COUNT(*) FROM edges e
-           WHERE e.from_id = w1.id OR e.to_id = w1.id
-         ) >= ?
-         AND (
-           SELECT COUNT(*) FROM edges e
-           WHERE e.from_id = w2.id OR e.to_id = w2.id
-         ) >= ?
-         ORDER BY RANDOM()
-         LIMIT 1`
-      )
-      .get(minDegree, minDegree) as { start: string; end: string } | undefined;
-
-    if (!row) return null;
-    return [row.start, row.end];
-  }
-
-  /** Count lemmas with at least `minDegree` connections (stable ordering by lemma). */
-  getEligibleLemmaCount(minDegree = 2): number {
+  /** Count lemmas that qualify as puzzle endpoints (stable ordering by lemma). */
+  getEligibleLemmaCount(): number {
+    const blocked = this.blockedLemmaClause();
     const row = this.db
       .prepare(
         `SELECT COUNT(*) AS count
          FROM words w
-         WHERE (
-           SELECT COUNT(*) FROM edges e
-           WHERE e.from_id = w.id OR e.to_id = w.id
-         ) >= ?`
+         WHERE ${this.eligibleWordSql("w")}
+         ${blocked.sql}`
       )
-      .get(minDegree) as { count: number };
+      .get(...this.eligibleBindParams(), ...blocked.params) as { count: number };
     return row.count;
   }
 
   /** Nth eligible lemma in stable lemma order. */
-  getEligibleLemmaAt(minDegree: number, offset: number): string | null {
+  getEligibleLemmaAt(offset: number): string | null {
+    const blocked = this.blockedLemmaClause();
     const row = this.db
       .prepare(
         `SELECT w.lemma
          FROM words w
-         WHERE (
-           SELECT COUNT(*) FROM edges e
-           WHERE e.from_id = w.id OR e.to_id = w.id
-         ) >= ?
+         WHERE ${this.eligibleWordSql("w")}
+         ${blocked.sql}
          ORDER BY w.lemma
          LIMIT 1 OFFSET ?`
       )
-      .get(minDegree, offset) as { lemma: string } | undefined;
+      .get(...this.eligibleBindParams(), ...blocked.params, offset) as
+      | { lemma: string }
+      | undefined;
     return row?.lemma ?? null;
   }
 

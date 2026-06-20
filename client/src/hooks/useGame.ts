@@ -23,6 +23,9 @@ import {
   type PersistedGameState,
 } from "../gamePersistence";
 import { hopDurationsFromReachedAt, updatePathReachedAt } from "../hopTiming";
+import { resolveDailyPuzzle } from "../loadPuzzle";
+import { readPuzzleCache, writePuzzleCache } from "../puzzleCache";
+import { getPuzzleDateKey } from "../../../shared/dailyPuzzle";
 import { recordSolve, recordWinStreak } from "../solveStats";
 
 export type { GameStatus };
@@ -79,14 +82,20 @@ function createFreshState() {
 }
 
 export function useGame() {
-  const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
+  const initialPuzzleRef = useRef<Puzzle | null>(null);
+  const [puzzle, setPuzzle] = useState<Puzzle | null>(() => {
+    if (getDebugPuzzleFromUrl()) return null;
+    const cached = readPuzzleCache(getPuzzleDateKey());
+    initialPuzzleRef.current = cached;
+    return cached;
+  });
   const [confirmedEdges, setConfirmedEdges] = useState<ConfirmedEdge[]>([]);
   const [confirmedBranches, setConfirmedBranches] = useState<ConfirmedBranch[]>([]);
   const [rejectedBranches, setRejectedBranches] = useState<RejectedBranch[]>([]);
   const [activeBranchId, setActiveBranchId] = useState<string | undefined>();
   const [status, setStatus] = useState<GameStatus>("playing");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => initialPuzzleRef.current === null);
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [totalGuesses, setTotalGuesses] = useState(0);
   const [wrongGuesses, setWrongGuesses] = useState(0);
@@ -166,36 +175,62 @@ export function useGame() {
     let cancelled = false;
 
     async function init() {
-      setLoading(true);
       setError(null);
+      const debug = getDebugPuzzleFromUrl();
+      const hadCachedPuzzle = initialPuzzleRef.current !== null && !debug;
+
+      if (hadCachedPuzzle && initialPuzzleRef.current) {
+        const saved = loadGameState();
+        if (
+          saved &&
+          saved.puzzleDate === initialPuzzleRef.current.puzzleDate &&
+          saved.puzzle.id === initialPuzzleRef.current.id
+        ) {
+          restoreSavedState(saved);
+        }
+        hydrated.current = true;
+      } else {
+        setLoading(true);
+      }
 
       try {
-        const debug = getDebugPuzzleFromUrl();
-        const fetched = await fetchPuzzle(
-          debug ? { start: debug.start, end: debug.end } : undefined
-        );
+        const fetched = debug
+          ? await fetchPuzzle({ start: debug.start, end: debug.end })
+          : await resolveDailyPuzzle(getPuzzleDateKey());
         if (cancelled) return;
 
-        if (!debug) {
-          const saved = loadGameState();
-          if (
-            saved &&
-            saved.puzzleDate === fetched.puzzleDate &&
-            saved.puzzle.id === fetched.id
-          ) {
-            restoreSavedState(saved);
-            setPuzzle(fetched);
-            hydrated.current = true;
-            return;
+        if (
+          !hadCachedPuzzle ||
+          fetched.id !== initialPuzzleRef.current?.id ||
+          fetched.puzzleDate !== initialPuzzleRef.current?.puzzleDate
+        ) {
+          if (!debug) {
+            const saved = loadGameState();
+            if (
+              saved &&
+              saved.puzzleDate === fetched.puzzleDate &&
+              saved.puzzle.id === fetched.id
+            ) {
+              restoreSavedState(saved);
+            } else {
+              clearGameState();
+              applyFreshState();
+            }
+          } else {
+            applyFreshState();
           }
-          clearGameState();
+
+          setPuzzle(fetched);
+          hydrated.current = true;
         }
 
-        applyFreshState();
-        setPuzzle(fetched);
-        hydrated.current = true;
+        if (!debug) {
+          writePuzzleCache(fetched);
+        }
       } catch (err) {
-        if (!cancelled) setError((err as Error).message);
+        if (!cancelled && !hadCachedPuzzle) {
+          setError((err as Error).message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -314,7 +314,7 @@ export function useGame() {
   }, []);
 
   const finalizeScore = useCallback(
-    async (
+    (
       winPath: string[],
       guessStats: { totalGuesses: number; wrongGuesses: number }
     ) => {
@@ -327,12 +327,18 @@ export function useGame() {
       setHopDurationsMs(durations);
       const solveTimeMs =
         puzzleStartedAt.current !== null ? Date.now() - puzzleStartedAt.current : 0;
-      const scoreResult = await scorePath(puzzle.start, puzzle.end, winPath, {
+
+      const optimisticScore: ScoreResponse = {
+        valid: true,
+        playerHops: winPath.length - 1,
+        optimalHops: puzzle.optimalHops,
         totalGuesses: guessStats.totalGuesses,
         wrongGuesses: guessStats.wrongGuesses,
+        correctGuesses: guessStats.totalGuesses - guessStats.wrongGuesses,
         solveTimeMs,
-      });
-      setScore(scoreResult);
+      };
+      setScore(optimisticScore);
+      setStatsVisible(true);
       setSolveRecorded((recorded) => {
         if (!recorded) {
           recordSolve(solveTimeMs);
@@ -341,7 +347,16 @@ export function useGame() {
         }
         return recorded;
       });
-      setStatsVisible(true);
+
+      void scorePath(puzzle.start, puzzle.end, winPath, {
+        totalGuesses: guessStats.totalGuesses,
+        wrongGuesses: guessStats.wrongGuesses,
+        solveTimeMs,
+      }).then((scoreResult) => {
+        if (scoreResult.valid) {
+          setScore(scoreResult);
+        }
+      });
     },
     [notePathArrival, puzzle, startTimer]
   );
@@ -439,7 +454,6 @@ export function useGame() {
 
         if (canonical === puzzle.end) {
           setStatus("won");
-          setStatsVisible(true);
           const winPath = buildWinPathFromBranch(puzzle.start, confirmedEdges, {
             id: branchId,
             from: fromWord,
@@ -450,7 +464,7 @@ export function useGame() {
             proximity: nextEdge.proximity,
             continuation: [],
           });
-          await finalizeScore(winPath, guessStats);
+          finalizeScore(winPath, guessStats);
         } else {
           notePathArrival(branchPath);
         }
@@ -479,8 +493,7 @@ export function useGame() {
 
         if (canonical === puzzle.end) {
           setStatus("won");
-          setStatsVisible(true);
-          await finalizeScore(branchPath, guessStats);
+          finalizeScore(branchPath, guessStats);
         } else {
           notePathArrival(branchPath);
         }
@@ -496,8 +509,7 @@ export function useGame() {
 
       if (canonical === puzzle.end) {
         setStatus("won");
-        setStatsVisible(true);
-        await finalizeScore(nextPath, guessStats);
+        finalizeScore(nextPath, guessStats);
       } else {
         notePathArrival(nextPath);
       }

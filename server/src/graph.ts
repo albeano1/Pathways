@@ -505,8 +505,9 @@ export class GraphService {
 
     if (connectFromIndex >= 0 && connectRelation) {
       const resolvedFromNode = resolvedPath[connectFromIndex]!;
+      const reachedGoal = resolvedTo === resolvedEnd;
       const previousHopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedFromNode);
-      const hopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedTo);
+      const hopsToEnd = reachedGoal ? 0 : this.distanceFromEnd(resolvedEnd, resolvedTo);
       const canonicalWord = resolvedTo !== normalizedTo ? resolvedTo : undefined;
       let proximity: Proximity | undefined;
 
@@ -584,8 +585,6 @@ export class GraphService {
       };
     }
 
-    const optimalPath = this.shortestPath(start, end) ?? undefined;
-
     return {
       valid: true,
       playerHops,
@@ -594,7 +593,6 @@ export class GraphService {
       wrongGuesses,
       correctGuesses,
       solveTimeMs,
-      optimalPath,
     };
   }
 }

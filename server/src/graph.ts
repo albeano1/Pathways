@@ -18,15 +18,27 @@ import {
 export class GraphService {
   private db: Database.Database;
   private wordIdCache = new Map<string, number>();
+  private hopCache = new Map<string, number | null>();
+  /** Hop distance to a puzzle end, keyed by resolved end lemma. */
+  private endDistanceMaps = new Map<string, Map<number, number>>();
   private aliasMap!: Map<string, string>;
   private lemmaSet!: Set<string>;
   private hasDegreeColumn = false;
+  private neighborIdStmt!: Database.Statement;
+  private lemmaByIdStmt!: Database.Statement;
+  private wordIdByLemmaStmt!: Database.Statement;
+  private edgeBetweenStmt!: Database.Statement;
+  private degreeByIdStmt!: Database.Statement;
 
   constructor(dbPath: string = getDbPath()) {
     if (!fs.existsSync(dbPath)) {
       throw new Error(`Graph database not found at ${dbPath}`);
     }
     this.db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    this.db.pragma("journal_mode = OFF");
+    this.db.pragma("mmap_size = 30000000000");
+    this.db.pragma("cache_size = -64000");
+    this.initStatements();
     this.initCaches();
   }
 
@@ -35,8 +47,27 @@ export class GraphService {
     const service = Object.create(GraphService.prototype) as GraphService;
     service.db = db;
     service.wordIdCache = new Map();
+    service.hopCache = new Map();
+    service.endDistanceMaps = new Map();
+    service.initStatements();
     service.initCaches();
     return service;
+  }
+
+  private initStatements(): void {
+    this.neighborIdStmt = this.db.prepare(
+      `SELECT CASE WHEN from_id = ? THEN to_id ELSE from_id END AS neighbor_id
+       FROM edges WHERE from_id = ? OR to_id = ?`
+    );
+    this.lemmaByIdStmt = this.db.prepare("SELECT lemma FROM words WHERE id = ?");
+    this.wordIdByLemmaStmt = this.db.prepare("SELECT id FROM words WHERE lemma = ?");
+    this.edgeBetweenStmt = this.db.prepare(
+      `SELECT relation FROM edges
+       WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
+       ORDER BY weight DESC
+       LIMIT 1`
+    );
+    this.degreeByIdStmt = this.db.prepare("SELECT degree FROM words WHERE id = ?");
   }
 
   private initCaches(): void {
@@ -57,9 +88,7 @@ export class GraphService {
     if (id === null) return 0;
 
     if (this.hasDegreeColumn) {
-      const row = this.db
-        .prepare("SELECT degree FROM words WHERE id = ?")
-        .get(id) as { degree: number } | undefined;
+      const row = this.degreeByIdStmt.get(id) as { degree: number } | undefined;
       return row?.degree ?? 0;
     }
 
@@ -113,13 +142,40 @@ export class GraphService {
   }
 
   private getNeighborIds(wordId: number): number[] {
-    const rows = this.db
-      .prepare(
-        `SELECT CASE WHEN from_id = ? THEN to_id ELSE from_id END AS neighbor_id
-         FROM edges WHERE from_id = ? OR to_id = ?`
-      )
-      .all(wordId, wordId, wordId) as Array<{ neighbor_id: number }>;
+    const rows = this.neighborIdStmt.all(wordId, wordId, wordId) as Array<{
+      neighbor_id: number;
+    }>;
     return rows.map((row) => row.neighbor_id);
+  }
+
+  private lemmaForId(wordId: number): string | null {
+    const row = this.lemmaByIdStmt.get(wordId) as { lemma: string } | undefined;
+    return row?.lemma ?? null;
+  }
+
+  private bfsHopCount(startLemma: string, endLemma: string): number | null {
+    const startId = this.getWordId(startLemma);
+    const endId = this.getWordId(endLemma);
+    if (startId === null || endId === null) return null;
+    if (startId === endId) return 0;
+
+    const queue: number[] = [startId];
+    let head = 0;
+    const depthById = new Map<number, number>([[startId, 0]]);
+
+    while (head < queue.length) {
+      const current = queue[head++]!;
+      const depth = depthById.get(current)!;
+      if (current === endId) return depth;
+
+      for (const neighborId of this.getNeighborIds(current)) {
+        if (depthById.has(neighborId)) continue;
+        depthById.set(neighborId, depth + 1);
+        queue.push(neighborId);
+      }
+    }
+
+    return null;
   }
 
   /** Lemmas exactly `hops` steps from `start` along shortest-path layers. */
@@ -143,7 +199,7 @@ export class GraphService {
       if (currentLayer.size === 0) return [];
     }
 
-    const lookup = this.db.prepare("SELECT lemma FROM words WHERE id = ?");
+    const lookup = this.lemmaByIdStmt;
     const lemmas: string[] = [];
     for (const id of currentLayer) {
       const row = lookup.get(id) as { lemma: string } | undefined;
@@ -160,10 +216,57 @@ export class GraphService {
   }
 
   private lookupLemma(lemma: string): number | null {
-    const row = this.db
-      .prepare("SELECT id FROM words WHERE lemma = ?")
-      .get(lemma) as { id: number } | undefined;
+    const row = this.wordIdByLemmaStmt.get(lemma) as { id: number } | undefined;
     return row?.id ?? null;
+  }
+
+  /** Precompute hop distances from every reachable node to `end`. */
+  warmEndDistances(end: string): void {
+    const resolvedEnd = this.resolveLemma(end);
+    if (!resolvedEnd) return;
+    this.getDistanceFromEndMap(resolvedEnd);
+  }
+
+  private getDistanceFromEndMap(resolvedEnd: string): Map<number, number> {
+    const cached = this.endDistanceMaps.get(resolvedEnd);
+    if (cached) return cached;
+
+    const endId = this.getWordId(resolvedEnd);
+    const distMap = new Map<number, number>();
+    if (endId === null) {
+      this.endDistanceMaps.set(resolvedEnd, distMap);
+      return distMap;
+    }
+
+    const queue: number[] = [endId];
+    let head = 0;
+    distMap.set(endId, 0);
+
+    while (head < queue.length) {
+      const current = queue[head++]!;
+      const depth = distMap.get(current)!;
+      for (const neighborId of this.getNeighborIds(current)) {
+        if (distMap.has(neighborId)) continue;
+        distMap.set(neighborId, depth + 1);
+        queue.push(neighborId);
+      }
+    }
+
+    this.endDistanceMaps.set(resolvedEnd, distMap);
+    return distMap;
+  }
+
+  private distanceFromEnd(end: string, word: string): number | null {
+    const resolvedEnd = this.resolveLemma(end);
+    const resolvedWord = this.resolveLemma(word);
+    if (!resolvedEnd || !resolvedWord) return null;
+    if (resolvedEnd === resolvedWord) return 0;
+
+    const wordId = this.getWordId(resolvedWord);
+    if (wordId === null) return null;
+
+    const hops = this.getDistanceFromEndMap(resolvedEnd).get(wordId);
+    return hops ?? null;
   }
 
   resolveLemma(word: string): string | null {
@@ -216,14 +319,9 @@ export class GraphService {
     const toId = this.getWordId(to);
     if (fromId === null || toId === null) return { valid: false };
 
-    const row = this.db
-      .prepare(
-        `SELECT relation FROM edges
-         WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
-         ORDER BY weight DESC
-         LIMIT 1`
-      )
-      .get(fromId, toId, toId, fromId) as { relation: string } | undefined;
+    const row = this.edgeBetweenStmt.get(fromId, toId, toId, fromId) as
+      | { relation: string }
+      | undefined;
 
     if (!row) return { valid: false };
     return { valid: true, relation: row.relation };
@@ -236,25 +334,19 @@ export class GraphService {
     if (startId === endId) return [this.normalize(start)];
 
     const queue: number[] = [startId];
+    let head = 0;
     const visited = new Set<number>([startId]);
     const parent = new Map<number, number>();
 
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    while (head < queue.length) {
+      const current = queue[head++]!;
       if (current === endId) break;
 
-      const neighbors = this.db
-        .prepare(
-          `SELECT CASE WHEN from_id = ? THEN to_id ELSE from_id END AS neighbor_id
-           FROM edges WHERE from_id = ? OR to_id = ?`
-        )
-        .all(current, current, current) as Array<{ neighbor_id: number }>;
-
-      for (const { neighbor_id } of neighbors) {
-        if (visited.has(neighbor_id)) continue;
-        visited.add(neighbor_id);
-        parent.set(neighbor_id, current);
-        queue.push(neighbor_id);
+      for (const neighborId of this.getNeighborIds(current)) {
+        if (visited.has(neighborId)) continue;
+        visited.add(neighborId);
+        parent.set(neighborId, current);
+        queue.push(neighborId);
       }
     }
 
@@ -267,17 +359,34 @@ export class GraphService {
       current = parent.get(current);
     }
 
-    const lemmas = this.db
-      .prepare(`SELECT lemma FROM words WHERE id = ?`)
-      .pluck();
-
-    return ids.map((id) => lemmas.get(id) as string);
+    return ids
+      .map((id) => this.lemmaForId(id))
+      .filter((lemma): lemma is string => lemma !== null);
   }
 
   shortestPathHops(start: string, end: string): number | null {
-    const path = this.shortestPath(start, end);
-    if (!path) return null;
-    return path.length - 1;
+    const resolvedStart = this.resolveLemma(start);
+    const resolvedEnd = this.resolveLemma(end);
+    if (!resolvedStart || !resolvedEnd) return null;
+    if (resolvedStart === resolvedEnd) return 0;
+
+    const key = `${resolvedStart}|${resolvedEnd}`;
+    if (this.hopCache.has(key)) {
+      return this.hopCache.get(key)!;
+    }
+
+    const startId = this.getWordId(resolvedStart);
+    if (startId !== null) {
+      const fromEnd = this.getDistanceFromEndMap(resolvedEnd).get(startId);
+      if (fromEnd !== undefined) {
+        this.hopCache.set(key, fromEnd);
+        return fromEnd;
+      }
+    }
+
+    const hops = this.bfsHopCount(resolvedStart, resolvedEnd);
+    this.hopCache.set(key, hops);
+    return hops;
   }
 
   /** Count lemmas that qualify as puzzle endpoints (stable ordering by lemma). */
@@ -396,8 +505,8 @@ export class GraphService {
 
     if (connectFromIndex >= 0 && connectRelation) {
       const resolvedFromNode = resolvedPath[connectFromIndex]!;
-      const previousHopsToEnd = this.shortestPathHops(resolvedFromNode, resolvedEnd);
-      const hopsToEnd = this.shortestPathHops(resolvedTo, resolvedEnd);
+      const previousHopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedFromNode);
+      const hopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedTo);
       const canonicalWord = resolvedTo !== normalizedTo ? resolvedTo : undefined;
       let proximity: Proximity | undefined;
 

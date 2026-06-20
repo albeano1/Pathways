@@ -78,23 +78,31 @@ export function PathTree({
     return map;
   }, [confirmedBranches, panelTreeBudget, initialHops, won, activeBranchId]);
 
-  const root = buildRenderTree(
-    start,
-    path,
-    confirmedEdges,
-    confirmedBranches,
-    rejectedBranches,
-    end,
-    won,
-    activeBranchId
+  const root = useMemo(
+    () =>
+      buildRenderTree(
+        start,
+        path,
+        confirmedEdges,
+        confirmedBranches,
+        rejectedBranches,
+        end,
+        won,
+        activeBranchId
+      ),
+    [start, path, confirmedEdges, confirmedBranches, rejectedBranches, end, won, activeBranchId]
   );
 
-  const layout = computeTreeLayout(root, {
-    stripGoal: won,
-    end,
-    trunkEdgeSpacings,
-    branchEdgeSpacings,
-  });
+  const layout = useMemo(
+    () =>
+      computeTreeLayout(root, {
+        stripGoal: won,
+        end,
+        trunkEdgeSpacings,
+        branchEdgeSpacings,
+      }),
+    [root, won, end, trunkEdgeSpacings, branchEdgeSpacings]
+  );
 
   const canvasSize = treeCanvasSize(layout);
   const scale = useTreeScale(treeAreaRef, canvasSize);

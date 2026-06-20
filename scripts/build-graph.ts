@@ -155,6 +155,8 @@ async function buildDatabase(selectedWords: Set<string>): Promise<void> {
     );
     CREATE INDEX idx_edges_from ON edges(from_id);
     CREATE INDEX idx_edges_to ON edges(to_id);
+    CREATE INDEX idx_edges_from_to ON edges(from_id, to_id);
+    CREATE INDEX idx_words_lemma ON words(lemma);
     CREATE INDEX idx_words_degree ON words(degree);
   `);
 
@@ -245,6 +247,8 @@ async function main(): Promise<void> {
       CREATE TABLE edges (from_id INTEGER NOT NULL, to_id INTEGER NOT NULL, relation TEXT NOT NULL, weight REAL NOT NULL);
       CREATE INDEX idx_edges_from ON edges(from_id);
       CREATE INDEX idx_edges_to ON edges(to_id);
+      CREATE INDEX idx_edges_from_to ON edges(from_id, to_id);
+      CREATE INDEX idx_words_lemma ON words(lemma);
       CREATE INDEX idx_words_degree ON words(degree);
     `);
 

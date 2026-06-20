@@ -25,6 +25,7 @@ import {
 import { hopDurationsFromReachedAt, updatePathReachedAt } from "../hopTiming";
 import { resolveDailyPuzzle } from "../loadPuzzle";
 import { readPuzzleCache, writePuzzleCache } from "../puzzleCache";
+import { warmApi } from "../warmApi";
 import { getPuzzleDateKey } from "../../../shared/dailyPuzzle";
 import { recordSolve, recordWinStreak } from "../solveStats";
 
@@ -96,6 +97,7 @@ export function useGame() {
   const [status, setStatus] = useState<GameStatus>("playing");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(() => initialPuzzleRef.current === null);
+  const [submitting, setSubmitting] = useState(false);
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [totalGuesses, setTotalGuesses] = useState(0);
   const [wrongGuesses, setWrongGuesses] = useState(0);
@@ -243,9 +245,14 @@ export function useGame() {
   }, [applyFreshState, restoreSavedState]);
 
   useEffect(() => {
+    if (!puzzle) return;
+    warmApi(puzzle.end);
+  }, [puzzle?.end]);
+
+  useEffect(() => {
     if (!hydrated.current || !puzzle || getDebugPuzzleFromUrl()) return;
 
-    saveGameState({
+    const snapshot: PersistedGameState = {
       puzzleDate: puzzle.puzzleDate,
       puzzle,
       confirmedEdges,
@@ -262,7 +269,10 @@ export function useGame() {
       branchCounter,
       statsVisible,
       solveRecorded,
-    });
+    };
+
+    const timer = window.setTimeout(() => saveGameState(snapshot), 400);
+    return () => window.clearTimeout(timer);
   }, [
     puzzle,
     confirmedEdges,
@@ -347,6 +357,8 @@ export function useGame() {
       const trimmed = word.trim().toLowerCase();
       if (!trimmed) return false;
 
+      setSubmitting(true);
+      try {
       const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
       const previous = path[path.length - 1]!;
       const trunkLen = path.length;
@@ -490,6 +502,9 @@ export function useGame() {
         notePathArrival(nextPath);
       }
       return true;
+    } finally {
+      setSubmitting(false);
+    }
     },
     [confirmedBranches, confirmedEdges, finalizeScore, notePathArrival, path, puzzle, recordGuess, startTimer, status, totalGuesses, wrongGuesses]
   );
@@ -509,6 +524,7 @@ export function useGame() {
     status,
     error,
     loading,
+    submitting,
     score,
     hopDurationsMs,
     statsVisible,

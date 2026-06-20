@@ -41,8 +41,13 @@ export function createApp(options: { serveClient?: boolean } = {}) {
   app.use(cors());
   app.use(express.json({ limit: "32kb" }));
 
-  app.get("/api/health", (_req, res) => {
+  app.get("/api/health", (req, res) => {
     try {
+      const { graph } = getServices();
+      const end = String(req.query.end ?? "").trim().toLowerCase();
+      if (end) {
+        graph.warmEndDistances(end);
+      }
       res.json({ ok: true, words: services.getWordCount() });
     } catch (error) {
       res.status(503).json({ ok: false, error: (error as Error).message });

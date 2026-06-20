@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { CSSProperties } from "react";
 import { formatRelation } from "./formatRelation";
 import { relationColor } from "./relationColors";
@@ -15,7 +16,7 @@ function edgeColor(edge: PositionedEdge): string {
   return edge.relation ? relationColor(edge.relation) : "#64748b";
 }
 
-export function TreeCanvas({ layout }: TreeCanvasProps) {
+export const TreeCanvas = memo(function TreeCanvas({ layout }: TreeCanvasProps) {
   const width = layout.width + CANVAS_PAD_X * 2;
   const height = layoutTreeBottom(layout.nodes) + CANVAS_PAD_TOP + CANVAS_PAD_BOTTOM;
 
@@ -96,4 +97,4 @@ export function TreeCanvas({ layout }: TreeCanvasProps) {
       ))}
     </div>
   );
-}
+});

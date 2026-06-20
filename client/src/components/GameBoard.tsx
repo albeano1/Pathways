@@ -20,6 +20,7 @@ export function GameBoard() {
     status,
     error,
     loading,
+    submitting,
     score,
     hopDurationsMs,
     statsVisible,
@@ -95,6 +96,7 @@ export function GameBoard() {
       <section className="panel panel--input">
         <WordInput
           disabled={!playing}
+          busy={submitting}
           error={playing ? error : null}
           onTypingStart={startTimer}
           onSubmit={submitWord}

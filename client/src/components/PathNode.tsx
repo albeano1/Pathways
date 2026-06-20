@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 export type PathNodeVariant =
   | "start"
   | "confirmed"
@@ -19,7 +21,7 @@ const HINT_LABELS: Partial<Record<PathNodeVariant, string>> = {
   "target-ghost": "Goal",
 };
 
-export function PathNode({ word, variant, isNew }: PathNodeProps) {
+export const PathNode = memo(function PathNode({ word, variant, isNew }: PathNodeProps) {
   const hint = HINT_LABELS[variant];
 
   return (
@@ -36,4 +38,4 @@ export function PathNode({ word, variant, isNew }: PathNodeProps) {
       <span className="path-node__word">{word}</span>
     </div>
   );
-}
+});

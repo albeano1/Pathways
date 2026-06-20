@@ -11,7 +11,7 @@
     "build:graph": "tsx scripts/build-graph.ts",
     "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w client && npm run build -w server",
-    "build:netlify": "npm rebuild better-sqlite3 && npm run build:graph && tsx scripts/embed-daily-puzzle.ts && npm run build -w client && npm run build -w server",
+    "build:netlify": "npm rebuild better-sqlite3 && npm run build:graph && tsx scripts/prepare-netlify-function.ts && tsx scripts/embed-daily-puzzle.ts && npm run build -w client && npm run build -w server",
     "start": "npm run start -w server"
   },
   "devDependencies": {

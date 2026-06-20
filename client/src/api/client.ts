@@ -7,8 +7,14 @@ const SERVER_ERROR =
   "Could not reach the server. Check your connection and try again.";
 
 async function readApiError(response: Response, fallback: string): Promise<string> {
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  return body?.error ?? fallback;
+  const text = await response.text();
+  try {
+    const body = JSON.parse(text) as { error?: string };
+    if (body.error) return body.error;
+  } catch {
+    // Ignore HTML or other non-JSON error bodies from the platform.
+  }
+  return fallback;
 }
 
 export async function fetchPuzzle(options?: {

@@ -11,7 +11,8 @@ import type {
   ValidateStepResponse,
 } from "../../shared/types.js";
 import { GraphService } from "./graph.js";
-import { CLIENT_DIST, DB_PATH } from "./paths.js";
+import { CLIENT_DIST } from "./paths.js";
+import { getDbPath } from "./bootstrapGraphDb.js";
 import { PuzzleService } from "./puzzles.js";
 
 function createServices() {
@@ -42,9 +43,9 @@ export function createApp(options: { serveClient?: boolean } = {}) {
 
   app.get("/api/health", (_req, res) => {
     try {
-      res.json({ ok: true, words: services.getWordCount(), dbPath: DB_PATH });
+      res.json({ ok: true, words: services.getWordCount() });
     } catch (error) {
-      res.status(503).json({ ok: false, error: (error as Error).message, dbPath: DB_PATH });
+      res.status(503).json({ ok: false, error: (error as Error).message });
     }
   });
 

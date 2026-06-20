@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { getPuzzleDateKey } from "../shared/dailyPuzzle.js";
 import { GraphService } from "../server/src/graph.js";
 import { PuzzleService } from "../server/src/puzzles.js";
-import { DB_PATH } from "../server/src/paths.js";
+import { getDbPath } from "../server/src/bootstrapGraphDb.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -12,7 +12,7 @@ const OUTPUT_DIR = path.join(ROOT, "client/public");
 const OUTPUT_PATH = path.join(OUTPUT_DIR, "daily-puzzle.json");
 
 async function main(): Promise<void> {
-  if (!fs.existsSync(DB_PATH)) {
+  if (!fs.existsSync(getDbPath())) {
     console.warn("Skipping daily puzzle embed — data/graph.db not found.");
     return;
   }

@@ -9,7 +9,7 @@ import {
   MIN_LEMMA_LENGTH,
   MIN_WORD_DEGREE,
 } from "../../shared/puzzleRules.js";
-import { DB_PATH } from "./paths.js";
+import { getDbPath } from "./bootstrapGraphDb.js";
 import {
   buildPluralAliasMap,
   resolveLemmaWithAliases,
@@ -22,7 +22,7 @@ export class GraphService {
   private lemmaSet!: Set<string>;
   private hasDegreeColumn = false;
 
-  constructor(dbPath: string = DB_PATH) {
+  constructor(dbPath: string = getDbPath()) {
     if (!fs.existsSync(dbPath)) {
       throw new Error(`Graph database not found at ${dbPath}`);
     }

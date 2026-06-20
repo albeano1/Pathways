@@ -1,0 +1,1810 @@
+[
+  {
+    "id": "puzzle-1",
+    "start": "dog",
+    "end": "building",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "dog",
+      "pet",
+      "home",
+      "house",
+      "building"
+    ]
+  },
+  {
+    "id": "puzzle-2",
+    "start": "dog",
+    "end": "structure",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "dog",
+      "pet",
+      "home",
+      "house",
+      "building",
+      "structure"
+    ]
+  },
+  {
+    "id": "puzzle-3",
+    "start": "dog",
+    "end": "house",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "dog",
+      "pet",
+      "home",
+      "house"
+    ]
+  },
+  {
+    "id": "puzzle-4",
+    "start": "music",
+    "end": "water",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "music",
+      "sound",
+      "wave",
+      "ocean",
+      "water"
+    ]
+  },
+  {
+    "id": "puzzle-5",
+    "start": "music",
+    "end": "liquid",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "music",
+      "sound",
+      "wave",
+      "ocean",
+      "water",
+      "liquid"
+    ]
+  },
+  {
+    "id": "puzzle-6",
+    "start": "music",
+    "end": "fluid",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "music",
+      "sound",
+      "wave",
+      "ocean",
+      "water",
+      "liquid",
+      "fluid"
+    ]
+  },
+  {
+    "id": "puzzle-7",
+    "start": "music",
+    "end": "ocean",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "music",
+      "sound",
+      "wave",
+      "ocean"
+    ]
+  },
+  {
+    "id": "puzzle-8",
+    "start": "vehicle",
+    "end": "trail",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "vehicle",
+      "transport",
+      "travel",
+      "journey",
+      "road",
+      "path",
+      "trail"
+    ]
+  },
+  {
+    "id": "puzzle-9",
+    "start": "vehicle",
+    "end": "journey",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "vehicle",
+      "transport",
+      "travel",
+      "journey"
+    ]
+  },
+  {
+    "id": "puzzle-10",
+    "start": "vehicle",
+    "end": "path",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "vehicle",
+      "transport",
+      "travel",
+      "journey",
+      "road",
+      "path"
+    ]
+  },
+  {
+    "id": "puzzle-11",
+    "start": "vehicle",
+    "end": "road",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "vehicle",
+      "transport",
+      "travel",
+      "journey",
+      "road"
+    ]
+  },
+  {
+    "id": "puzzle-12",
+    "start": "knowledge",
+    "end": "tree",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "knowledge",
+      "science",
+      "biology",
+      "life",
+      "plant",
+      "tree"
+    ]
+  },
+  {
+    "id": "puzzle-13",
+    "start": "knowledge",
+    "end": "plant",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "knowledge",
+      "science",
+      "biology",
+      "life",
+      "plant"
+    ]
+  },
+  {
+    "id": "puzzle-14",
+    "start": "knowledge",
+    "end": "life",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "knowledge",
+      "science",
+      "biology",
+      "life"
+    ]
+  },
+  {
+    "id": "puzzle-15",
+    "start": "knowledge",
+    "end": "education",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "knowledge",
+      "learning",
+      "school",
+      "education"
+    ]
+  },
+  {
+    "id": "puzzle-16",
+    "start": "trail",
+    "end": "journey",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "trail",
+      "path",
+      "road",
+      "journey"
+    ]
+  },
+  {
+    "id": "puzzle-17",
+    "start": "trail",
+    "end": "transport",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "trail",
+      "path",
+      "road",
+      "journey",
+      "travel",
+      "transport"
+    ]
+  },
+  {
+    "id": "puzzle-18",
+    "start": "trail",
+    "end": "travel",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "trail",
+      "path",
+      "road",
+      "journey",
+      "travel"
+    ]
+  },
+  {
+    "id": "puzzle-19",
+    "start": "building",
+    "end": "pet",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "building",
+      "house",
+      "home",
+      "pet"
+    ]
+  },
+  {
+    "id": "puzzle-20",
+    "start": "building",
+    "end": "animal",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "building",
+      "house",
+      "home",
+      "pet",
+      "dog",
+      "animal"
+    ]
+  },
+  {
+    "id": "puzzle-21",
+    "start": "building",
+    "end": "mammal",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "building",
+      "house",
+      "home",
+      "pet",
+      "dog",
+      "animal",
+      "mammal"
+    ]
+  },
+  {
+    "id": "puzzle-22",
+    "start": "building",
+    "end": "cat",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "building",
+      "house",
+      "home",
+      "pet",
+      "cat"
+    ]
+  },
+  {
+    "id": "puzzle-23",
+    "start": "car",
+    "end": "journey",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "car",
+      "vehicle",
+      "transport",
+      "travel",
+      "journey"
+    ]
+  },
+  {
+    "id": "puzzle-24",
+    "start": "car",
+    "end": "path",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "car",
+      "vehicle",
+      "transport",
+      "travel",
+      "journey",
+      "road",
+      "path"
+    ]
+  },
+  {
+    "id": "puzzle-25",
+    "start": "car",
+    "end": "travel",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "car",
+      "vehicle",
+      "transport",
+      "travel"
+    ]
+  },
+  {
+    "id": "puzzle-26",
+    "start": "car",
+    "end": "road",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "car",
+      "vehicle",
+      "transport",
+      "travel",
+      "journey",
+      "road"
+    ]
+  },
+  {
+    "id": "puzzle-27",
+    "start": "narrative",
+    "end": "language",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "narrative",
+      "text",
+      "word",
+      "language"
+    ]
+  },
+  {
+    "id": "puzzle-28",
+    "start": "narrative",
+    "end": "communication",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "narrative",
+      "text",
+      "word",
+      "language",
+      "communication"
+    ]
+  },
+  {
+    "id": "puzzle-29",
+    "start": "water",
+    "end": "substance",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "water",
+      "liquid",
+      "fluid",
+      "substance"
+    ]
+  },
+  {
+    "id": "puzzle-30",
+    "start": "water",
+    "end": "sound",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "water",
+      "ocean",
+      "wave",
+      "sound"
+    ]
+  },
+  {
+    "id": "puzzle-31",
+    "start": "substance",
+    "end": "ocean",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "substance",
+      "fluid",
+      "liquid",
+      "water",
+      "ocean"
+    ]
+  },
+  {
+    "id": "puzzle-32",
+    "start": "substance",
+    "end": "sound",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "substance",
+      "fluid",
+      "liquid",
+      "water",
+      "ocean",
+      "wave",
+      "sound"
+    ]
+  },
+  {
+    "id": "puzzle-33",
+    "start": "substance",
+    "end": "wave",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "substance",
+      "fluid",
+      "liquid",
+      "water",
+      "ocean",
+      "wave"
+    ]
+  },
+  {
+    "id": "puzzle-34",
+    "start": "liquid",
+    "end": "sound",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "liquid",
+      "water",
+      "ocean",
+      "wave",
+      "sound"
+    ]
+  },
+  {
+    "id": "puzzle-35",
+    "start": "liquid",
+    "end": "wave",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "liquid",
+      "water",
+      "ocean",
+      "wave"
+    ]
+  },
+  {
+    "id": "puzzle-36",
+    "start": "universe",
+    "end": "power",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "universe",
+      "space",
+      "star",
+      "sun",
+      "light",
+      "electricity",
+      "power"
+    ]
+  },
+  {
+    "id": "puzzle-37",
+    "start": "universe",
+    "end": "sun",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "universe",
+      "space",
+      "star",
+      "sun"
+    ]
+  },
+  {
+    "id": "puzzle-38",
+    "start": "universe",
+    "end": "light",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "universe",
+      "space",
+      "star",
+      "sun",
+      "light"
+    ]
+  },
+  {
+    "id": "puzzle-39",
+    "start": "universe",
+    "end": "electricity",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "universe",
+      "space",
+      "star",
+      "sun",
+      "light",
+      "electricity"
+    ]
+  },
+  {
+    "id": "puzzle-40",
+    "start": "pet",
+    "end": "structure",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "pet",
+      "home",
+      "house",
+      "building",
+      "structure"
+    ]
+  },
+  {
+    "id": "puzzle-41",
+    "start": "pet",
+    "end": "mammal",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "pet",
+      "dog",
+      "animal",
+      "mammal"
+    ]
+  },
+  {
+    "id": "puzzle-42",
+    "start": "animal",
+    "end": "structure",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "animal",
+      "dog",
+      "pet",
+      "home",
+      "house",
+      "building",
+      "structure"
+    ]
+  },
+  {
+    "id": "puzzle-43",
+    "start": "animal",
+    "end": "house",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "animal",
+      "dog",
+      "pet",
+      "home",
+      "house"
+    ]
+  },
+  {
+    "id": "puzzle-44",
+    "start": "animal",
+    "end": "home",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "animal",
+      "dog",
+      "pet",
+      "home"
+    ]
+  },
+  {
+    "id": "puzzle-45",
+    "start": "structure",
+    "end": "home",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "structure",
+      "building",
+      "house",
+      "home"
+    ]
+  },
+  {
+    "id": "puzzle-46",
+    "start": "structure",
+    "end": "cat",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "structure",
+      "building",
+      "house",
+      "home",
+      "pet",
+      "cat"
+    ]
+  },
+  {
+    "id": "puzzle-47",
+    "start": "text",
+    "end": "communication",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "text",
+      "word",
+      "language",
+      "communication"
+    ]
+  },
+  {
+    "id": "puzzle-48",
+    "start": "text",
+    "end": "book",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "text",
+      "narrative",
+      "story",
+      "book"
+    ]
+  },
+  {
+    "id": "puzzle-49",
+    "start": "power",
+    "end": "fire",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "power",
+      "energy",
+      "heat",
+      "fire"
+    ]
+  },
+  {
+    "id": "puzzle-50",
+    "start": "power",
+    "end": "space",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "power",
+      "electricity",
+      "light",
+      "sun",
+      "star",
+      "space"
+    ]
+  },
+  {
+    "id": "puzzle-51",
+    "start": "power",
+    "end": "sun",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "power",
+      "electricity",
+      "light",
+      "sun"
+    ]
+  },
+  {
+    "id": "puzzle-52",
+    "start": "power",
+    "end": "star",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "power",
+      "electricity",
+      "light",
+      "sun",
+      "star"
+    ]
+  },
+  {
+    "id": "puzzle-53",
+    "start": "apple",
+    "end": "meal",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "apple",
+      "fruit",
+      "food",
+      "meal"
+    ]
+  },
+  {
+    "id": "puzzle-54",
+    "start": "apple",
+    "end": "evening",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "apple",
+      "fruit",
+      "food",
+      "meal",
+      "dinner",
+      "evening"
+    ]
+  },
+  {
+    "id": "puzzle-55",
+    "start": "apple",
+    "end": "dark",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "apple",
+      "red",
+      "color",
+      "black",
+      "dark"
+    ]
+  },
+  {
+    "id": "puzzle-56",
+    "start": "apple",
+    "end": "dinner",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "apple",
+      "fruit",
+      "food",
+      "meal",
+      "dinner"
+    ]
+  },
+  {
+    "id": "puzzle-57",
+    "start": "apple",
+    "end": "night",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "apple",
+      "red",
+      "color",
+      "black",
+      "dark",
+      "night"
+    ]
+  },
+  {
+    "id": "puzzle-58",
+    "start": "apple",
+    "end": "black",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "apple",
+      "red",
+      "color",
+      "black"
+    ]
+  },
+  {
+    "id": "puzzle-59",
+    "start": "heat",
+    "end": "sun",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "heat",
+      "energy",
+      "power",
+      "electricity",
+      "light",
+      "sun"
+    ]
+  },
+  {
+    "id": "puzzle-60",
+    "start": "heat",
+    "end": "light",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "heat",
+      "energy",
+      "power",
+      "electricity",
+      "light"
+    ]
+  },
+  {
+    "id": "puzzle-61",
+    "start": "heat",
+    "end": "electricity",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "heat",
+      "energy",
+      "power",
+      "electricity"
+    ]
+  },
+  {
+    "id": "puzzle-62",
+    "start": "heat",
+    "end": "star",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "heat",
+      "energy",
+      "power",
+      "electricity",
+      "light",
+      "sun",
+      "star"
+    ]
+  },
+  {
+    "id": "puzzle-63",
+    "start": "color",
+    "end": "meal",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "color",
+      "red",
+      "apple",
+      "fruit",
+      "food",
+      "meal"
+    ]
+  },
+  {
+    "id": "puzzle-64",
+    "start": "color",
+    "end": "evening",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "color",
+      "black",
+      "dark",
+      "night",
+      "evening"
+    ]
+  },
+  {
+    "id": "puzzle-65",
+    "start": "color",
+    "end": "dinner",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "color",
+      "black",
+      "dark",
+      "night",
+      "evening",
+      "dinner"
+    ]
+  },
+  {
+    "id": "puzzle-66",
+    "start": "color",
+    "end": "night",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "color",
+      "black",
+      "dark",
+      "night"
+    ]
+  },
+  {
+    "id": "puzzle-67",
+    "start": "color",
+    "end": "fruit",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "color",
+      "red",
+      "apple",
+      "fruit"
+    ]
+  },
+  {
+    "id": "puzzle-68",
+    "start": "color",
+    "end": "food",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "color",
+      "red",
+      "apple",
+      "fruit",
+      "food"
+    ]
+  },
+  {
+    "id": "puzzle-69",
+    "start": "meal",
+    "end": "dark",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "meal",
+      "dinner",
+      "evening",
+      "night",
+      "dark"
+    ]
+  },
+  {
+    "id": "puzzle-70",
+    "start": "meal",
+    "end": "night",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "meal",
+      "dinner",
+      "evening",
+      "night"
+    ]
+  },
+  {
+    "id": "puzzle-71",
+    "start": "meal",
+    "end": "black",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "meal",
+      "dinner",
+      "evening",
+      "night",
+      "dark",
+      "black"
+    ]
+  },
+  {
+    "id": "puzzle-72",
+    "start": "meal",
+    "end": "red",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "meal",
+      "food",
+      "fruit",
+      "apple",
+      "red"
+    ]
+  },
+  {
+    "id": "puzzle-73",
+    "start": "tree",
+    "end": "science",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "tree",
+      "plant",
+      "life",
+      "biology",
+      "science"
+    ]
+  },
+  {
+    "id": "puzzle-74",
+    "start": "tree",
+    "end": "learning",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "tree",
+      "plant",
+      "life",
+      "biology",
+      "science",
+      "knowledge",
+      "learning"
+    ]
+  },
+  {
+    "id": "puzzle-75",
+    "start": "tree",
+    "end": "biology",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "tree",
+      "plant",
+      "life",
+      "biology"
+    ]
+  },
+  {
+    "id": "puzzle-76",
+    "start": "plant",
+    "end": "science",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "plant",
+      "life",
+      "biology",
+      "science"
+    ]
+  },
+  {
+    "id": "puzzle-77",
+    "start": "plant",
+    "end": "learning",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "plant",
+      "life",
+      "biology",
+      "science",
+      "knowledge",
+      "learning"
+    ]
+  },
+  {
+    "id": "puzzle-78",
+    "start": "plant",
+    "end": "school",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "plant",
+      "life",
+      "biology",
+      "science",
+      "knowledge",
+      "learning",
+      "school"
+    ]
+  },
+  {
+    "id": "puzzle-79",
+    "start": "fluid",
+    "end": "ocean",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "fluid",
+      "liquid",
+      "water",
+      "ocean"
+    ]
+  },
+  {
+    "id": "puzzle-80",
+    "start": "fluid",
+    "end": "sound",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "fluid",
+      "liquid",
+      "water",
+      "ocean",
+      "wave",
+      "sound"
+    ]
+  },
+  {
+    "id": "puzzle-81",
+    "start": "fluid",
+    "end": "wave",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "fluid",
+      "liquid",
+      "water",
+      "ocean",
+      "wave"
+    ]
+  },
+  {
+    "id": "puzzle-82",
+    "start": "language",
+    "end": "book",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "language",
+      "word",
+      "text",
+      "narrative",
+      "story",
+      "book"
+    ]
+  },
+  {
+    "id": "puzzle-83",
+    "start": "language",
+    "end": "story",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "language",
+      "word",
+      "text",
+      "narrative",
+      "story"
+    ]
+  },
+  {
+    "id": "puzzle-84",
+    "start": "fire",
+    "end": "sun",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "fire",
+      "heat",
+      "energy",
+      "power",
+      "electricity",
+      "light",
+      "sun"
+    ]
+  },
+  {
+    "id": "puzzle-85",
+    "start": "fire",
+    "end": "light",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "fire",
+      "heat",
+      "energy",
+      "power",
+      "electricity",
+      "light"
+    ]
+  },
+  {
+    "id": "puzzle-86",
+    "start": "fire",
+    "end": "electricity",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "fire",
+      "heat",
+      "energy",
+      "power",
+      "electricity"
+    ]
+  },
+  {
+    "id": "puzzle-87",
+    "start": "path",
+    "end": "transport",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "path",
+      "road",
+      "journey",
+      "travel",
+      "transport"
+    ]
+  },
+  {
+    "id": "puzzle-88",
+    "start": "path",
+    "end": "travel",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "path",
+      "road",
+      "journey",
+      "travel"
+    ]
+  },
+  {
+    "id": "puzzle-89",
+    "start": "communication",
+    "end": "book",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "communication",
+      "language",
+      "word",
+      "text",
+      "narrative",
+      "story",
+      "book"
+    ]
+  },
+  {
+    "id": "puzzle-90",
+    "start": "communication",
+    "end": "story",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "communication",
+      "language",
+      "word",
+      "text",
+      "narrative",
+      "story"
+    ]
+  },
+  {
+    "id": "puzzle-91",
+    "start": "book",
+    "end": "word",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "book",
+      "story",
+      "narrative",
+      "text",
+      "word"
+    ]
+  },
+  {
+    "id": "puzzle-92",
+    "start": "life",
+    "end": "education",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "life",
+      "biology",
+      "science",
+      "knowledge",
+      "learning",
+      "school",
+      "education"
+    ]
+  },
+  {
+    "id": "puzzle-93",
+    "start": "life",
+    "end": "learning",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "life",
+      "biology",
+      "science",
+      "knowledge",
+      "learning"
+    ]
+  },
+  {
+    "id": "puzzle-94",
+    "start": "life",
+    "end": "school",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "life",
+      "biology",
+      "science",
+      "knowledge",
+      "learning",
+      "school"
+    ]
+  },
+  {
+    "id": "puzzle-95",
+    "start": "evening",
+    "end": "fruit",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "evening",
+      "dinner",
+      "meal",
+      "food",
+      "fruit"
+    ]
+  },
+  {
+    "id": "puzzle-96",
+    "start": "evening",
+    "end": "black",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "evening",
+      "night",
+      "dark",
+      "black"
+    ]
+  },
+  {
+    "id": "puzzle-97",
+    "start": "evening",
+    "end": "food",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "evening",
+      "dinner",
+      "meal",
+      "food"
+    ]
+  },
+  {
+    "id": "puzzle-98",
+    "start": "evening",
+    "end": "red",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "evening",
+      "night",
+      "dark",
+      "black",
+      "color",
+      "red"
+    ]
+  },
+  {
+    "id": "puzzle-99",
+    "start": "story",
+    "end": "word",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "story",
+      "narrative",
+      "text",
+      "word"
+    ]
+  },
+  {
+    "id": "puzzle-100",
+    "start": "transport",
+    "end": "road",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "transport",
+      "travel",
+      "journey",
+      "road"
+    ]
+  },
+  {
+    "id": "puzzle-101",
+    "start": "dark",
+    "end": "dinner",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "dark",
+      "night",
+      "evening",
+      "dinner"
+    ]
+  },
+  {
+    "id": "puzzle-102",
+    "start": "dark",
+    "end": "fruit",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "dark",
+      "black",
+      "color",
+      "red",
+      "apple",
+      "fruit"
+    ]
+  },
+  {
+    "id": "puzzle-103",
+    "start": "dark",
+    "end": "food",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "dark",
+      "night",
+      "evening",
+      "dinner",
+      "meal",
+      "food"
+    ]
+  },
+  {
+    "id": "puzzle-104",
+    "start": "dark",
+    "end": "red",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "dark",
+      "black",
+      "color",
+      "red"
+    ]
+  },
+  {
+    "id": "puzzle-105",
+    "start": "house",
+    "end": "mammal",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "house",
+      "home",
+      "pet",
+      "dog",
+      "animal",
+      "mammal"
+    ]
+  },
+  {
+    "id": "puzzle-106",
+    "start": "house",
+    "end": "cat",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "house",
+      "home",
+      "pet",
+      "cat"
+    ]
+  },
+  {
+    "id": "puzzle-107",
+    "start": "space",
+    "end": "light",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "space",
+      "star",
+      "sun",
+      "light"
+    ]
+  },
+  {
+    "id": "puzzle-108",
+    "start": "space",
+    "end": "energy",
+    "optimalHops": 6,
+    "difficulty": "hard",
+    "samplePath": [
+      "space",
+      "star",
+      "sun",
+      "light",
+      "electricity",
+      "power",
+      "energy"
+    ]
+  },
+  {
+    "id": "puzzle-109",
+    "start": "space",
+    "end": "electricity",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "space",
+      "star",
+      "sun",
+      "light",
+      "electricity"
+    ]
+  },
+  {
+    "id": "puzzle-110",
+    "start": "dinner",
+    "end": "fruit",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "dinner",
+      "meal",
+      "food",
+      "fruit"
+    ]
+  },
+  {
+    "id": "puzzle-111",
+    "start": "dinner",
+    "end": "black",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "dinner",
+      "evening",
+      "night",
+      "dark",
+      "black"
+    ]
+  },
+  {
+    "id": "puzzle-112",
+    "start": "dinner",
+    "end": "red",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "dinner",
+      "meal",
+      "food",
+      "fruit",
+      "apple",
+      "red"
+    ]
+  },
+  {
+    "id": "puzzle-113",
+    "start": "education",
+    "end": "science",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "education",
+      "school",
+      "learning",
+      "knowledge",
+      "science"
+    ]
+  },
+  {
+    "id": "puzzle-114",
+    "start": "education",
+    "end": "biology",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "education",
+      "school",
+      "learning",
+      "knowledge",
+      "science",
+      "biology"
+    ]
+  },
+  {
+    "id": "puzzle-115",
+    "start": "sun",
+    "end": "energy",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "sun",
+      "light",
+      "electricity",
+      "power",
+      "energy"
+    ]
+  },
+  {
+    "id": "puzzle-116",
+    "start": "night",
+    "end": "fruit",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "night",
+      "evening",
+      "dinner",
+      "meal",
+      "food",
+      "fruit"
+    ]
+  },
+  {
+    "id": "puzzle-117",
+    "start": "night",
+    "end": "food",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "night",
+      "evening",
+      "dinner",
+      "meal",
+      "food"
+    ]
+  },
+  {
+    "id": "puzzle-118",
+    "start": "night",
+    "end": "red",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "night",
+      "dark",
+      "black",
+      "color",
+      "red"
+    ]
+  },
+  {
+    "id": "puzzle-119",
+    "start": "science",
+    "end": "school",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "science",
+      "knowledge",
+      "learning",
+      "school"
+    ]
+  },
+  {
+    "id": "puzzle-120",
+    "start": "fruit",
+    "end": "black",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "fruit",
+      "apple",
+      "red",
+      "color",
+      "black"
+    ]
+  },
+  {
+    "id": "puzzle-121",
+    "start": "black",
+    "end": "food",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "black",
+      "color",
+      "red",
+      "apple",
+      "fruit",
+      "food"
+    ]
+  },
+  {
+    "id": "puzzle-122",
+    "start": "food",
+    "end": "red",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "food",
+      "fruit",
+      "apple",
+      "red"
+    ]
+  },
+  {
+    "id": "puzzle-123",
+    "start": "light",
+    "end": "energy",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "light",
+      "electricity",
+      "power",
+      "energy"
+    ]
+  },
+  {
+    "id": "puzzle-124",
+    "start": "mammal",
+    "end": "home",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "mammal",
+      "animal",
+      "dog",
+      "pet",
+      "home"
+    ]
+  },
+  {
+    "id": "puzzle-125",
+    "start": "energy",
+    "end": "star",
+    "optimalHops": 5,
+    "difficulty": "hard",
+    "samplePath": [
+      "energy",
+      "power",
+      "electricity",
+      "light",
+      "sun",
+      "star"
+    ]
+  },
+  {
+    "id": "puzzle-126",
+    "start": "learning",
+    "end": "biology",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "learning",
+      "knowledge",
+      "science",
+      "biology"
+    ]
+  },
+  {
+    "id": "puzzle-127",
+    "start": "electricity",
+    "end": "star",
+    "optimalHops": 3,
+    "difficulty": "easy",
+    "samplePath": [
+      "electricity",
+      "light",
+      "sun",
+      "star"
+    ]
+  },
+  {
+    "id": "puzzle-128",
+    "start": "school",
+    "end": "biology",
+    "optimalHops": 4,
+    "difficulty": "medium",
+    "samplePath": [
+      "school",
+      "learning",
+      "knowledge",
+      "science",
+      "biology"
+    ]
+  }
+]

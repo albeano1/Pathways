@@ -1,0 +1,6 @@
+node_modules/
+dist/
+data/graph.db
+data/assertions.csv.gz
+*.log
+.DS_Store

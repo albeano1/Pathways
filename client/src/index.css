@@ -750,13 +750,6 @@ button {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.word-input__error {
-  margin: 0;
-  font-size: 0.82rem;
-  color: #b91c1c;
-  line-height: 1.35;
-}
-
 .word-input input {
   flex: 1;
   width: 100%;

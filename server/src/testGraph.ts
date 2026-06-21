@@ -66,3 +66,57 @@ export function createPuzzleTestGraph(): GraphService {
 
   return GraphService.fromDatabase(db);
 }
+
+/** Graph with a main trunk and side branches for connection-anchor tests. */
+export function createBranchAnchorTestGraph(): GraphService {
+  const db = new Database(":memory:");
+  db.exec(`
+    CREATE TABLE words (
+      id INTEGER PRIMARY KEY,
+      lemma TEXT UNIQUE NOT NULL,
+      label TEXT NOT NULL,
+      degree INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE edges (
+      from_id INTEGER NOT NULL,
+      to_id INTEGER NOT NULL,
+      relation TEXT NOT NULL,
+      weight REAL NOT NULL
+    );
+    CREATE INDEX idx_edges_from ON edges(from_id);
+    CREATE INDEX idx_edges_to ON edges(to_id);
+    CREATE INDEX idx_words_degree ON words(degree);
+  `);
+
+  const insertWord = db.prepare("INSERT INTO words (lemma, label) VALUES (?, ?)");
+  const insertEdge = db.prepare(
+    "INSERT INTO edges (from_id, to_id, relation, weight) VALUES (?, ?, ?, ?)"
+  );
+  const idFor = db.prepare("SELECT id FROM words WHERE lemma = ?").pluck();
+
+  for (const word of ["sergeant", "sentence", "line", "poetry", "cadet", "army", "goal", "target"]) {
+    insertWord.run(word, word);
+  }
+
+  const connect = (from: string, to: string) => {
+    insertEdge.run(idFor.get(from), idFor.get(to), "RelatedTo", 2);
+  };
+
+  connect("sergeant", "sentence");
+  connect("sentence", "line");
+  connect("sergeant", "poetry");
+  connect("sergeant", "army");
+  connect("sentence", "cadet");
+  connect("cadet", "army");
+  connect("cadet", "target");
+  connect("poetry", "goal");
+
+  db.exec(`
+    UPDATE words SET degree = (
+      SELECT COUNT(*) FROM edges e
+      WHERE e.from_id = words.id OR e.to_id = words.id
+    )
+  `);
+
+  return GraphService.fromDatabase(db);
+}

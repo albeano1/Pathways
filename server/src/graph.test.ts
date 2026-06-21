@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { getDbPath } from "./bootstrapGraphDb.js";
 import { GraphService } from "./graph.js";
-import { createPuzzleTestGraph } from "./testGraph.js";
+import { createBranchAnchorTestGraph, createPuzzleTestGraph } from "./testGraph.js";
 
 describe("GraphService distance cache", () => {
   const graph = createPuzzleTestGraph();
@@ -35,5 +35,36 @@ describe("GraphService plural variants", () => {
     expect(result.valid).toBe(true);
     expect(result.canonicalWord).toBe("line");
     expect(result.hopsToEnd).toBe(1);
+  });
+});
+
+describe("GraphService path connection search", () => {
+  const graph = createBranchAnchorTestGraph();
+
+  it("extends from the branch node when it is first matching path word", () => {
+    graph.warmEndDistances("goal");
+    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
+    const result = graph.analyzeStep("poetry", "goal", "goal", explorePath);
+    expect(result.valid).toBe(true);
+    expect(result.connectedFrom).toBe("poetry");
+    expect(result.connectFromIndex).toBe(3);
+  });
+
+  it("connects from any explored path node, not only the active tip", () => {
+    graph.warmEndDistances("goal");
+    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
+    const result = graph.analyzeStep("poetry", "target", "goal", explorePath);
+    expect(result.valid).toBe(true);
+    expect(result.connectedFrom).toBe("cadet");
+    expect(result.connectFromIndex).toBe(4);
+  });
+
+  it("prefers earlier path nodes when several could connect", () => {
+    graph.warmEndDistances("goal");
+    const explorePath = ["sergeant", "sentence", "line"];
+    const result = graph.analyzeStep("line", "army", "goal", explorePath);
+    expect(result.valid).toBe(true);
+    expect(result.connectedFrom).toBe("sergeant");
+    expect(result.connectFromIndex).toBe(0);
   });
 });

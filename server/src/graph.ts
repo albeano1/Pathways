@@ -328,6 +328,22 @@ export class GraphService {
     return { valid: true, relation: row.relation };
   }
 
+  /** Match edges allowing singular/plural surface forms on either endpoint. */
+  private hasMorphEdge(
+    from: string,
+    to: string
+  ): { valid: boolean; relation?: string; fromLemma?: string; toLemma?: string } {
+    for (const fromLemma of this.morphVariants(from)) {
+      for (const toLemma of this.morphVariants(to)) {
+        const edge = this.hasEdge(fromLemma, toLemma);
+        if (edge.valid) {
+          return { valid: true, relation: edge.relation, fromLemma, toLemma };
+        }
+      }
+    }
+    return { valid: false };
+  }
+
   shortestPath(start: string, end: string): string[] | null {
     const startId = this.getWordId(start);
     const endId = this.getWordId(end);
@@ -501,14 +517,14 @@ export class GraphService {
     let connectFromIndex = -1;
     let connectRelation: string | undefined;
     let connectedTo = resolvedTo;
-    for (let i = resolvedPath.length - 1; i >= 0; i--) {
+    for (let i = 0; i < resolvedPath.length; i++) {
       const candidate = resolvedPath[i]!;
       for (const variant of toVariants) {
-        const candidateEdge = this.hasEdge(candidate, variant);
+        const candidateEdge = this.hasMorphEdge(candidate, variant);
         if (candidateEdge.valid) {
           connectFromIndex = i;
           connectRelation = candidateEdge.relation;
-          connectedTo = variant;
+          connectedTo = candidateEdge.toLemma ?? variant;
           break;
         }
       }
@@ -547,13 +563,16 @@ export class GraphService {
 
     const canonicalWord = connectedTo !== normalizedTo ? connectedTo : undefined;
     const connectsTo = resolvedPath
-      .filter((word) => word !== resolvedFrom)
       .flatMap((word) =>
         toVariants
           .map((variant) => {
-            const connection = this.hasEdge(word, variant);
+            const connection = this.hasMorphEdge(word, variant);
             return connection.valid
-              ? { word, relation: connection.relation!, variant }
+              ? {
+                  word,
+                  relation: connection.relation!,
+                  variant: connection.toLemma ?? variant,
+                }
               : null;
           })
           .filter((item): item is { word: string; relation: string; variant: string } => item !== null)
@@ -570,10 +589,7 @@ export class GraphService {
       failureType: "no_edge",
       canonicalWord,
       connectsTo: connectsTo.length > 0 ? connectsTo : undefined,
-      error:
-        canonicalWord !== undefined
-          ? `"${to}" matches "${resolvedTo}", but it is not connected to "${from}"`
-          : `"${to}" is not connected to "${from}"`,
+      error: "That word does not connect to your path.",
     };
   }
 

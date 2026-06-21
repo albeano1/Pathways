@@ -375,9 +375,9 @@ export function useGame() {
       setSubmitting(true);
       try {
       const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
-      const previous = path[path.length - 1]!;
+      const activeWord = currentWord;
       const trunkLen = path.length;
-      const result = await validateStep(previous, trimmed, puzzle.end, explorePath);
+      const result = await validateStep(activeWord, trimmed, puzzle.end, explorePath);
 
       if (result.valid !== true) {
         if (puzzleStartedAt.current === null) {
@@ -385,7 +385,6 @@ export function useGame() {
         }
         if (isOrphanWord(result)) {
           recordGuess(true);
-          setError(result.error ?? "That word does not connect to your path.");
           return false;
         }
 
@@ -394,13 +393,12 @@ export function useGame() {
           ...current,
           {
             id: nextBranchId(),
-            from: previous,
+            from: activeWord,
             attempted: trimmed,
             failureType: result.failureType ?? "no_edge",
             connectsTo: result.connectsTo,
           },
         ]);
-        setError(result.error ?? "That word does not connect.");
         return false;
       }
 
@@ -412,7 +410,7 @@ export function useGame() {
 
       const canonical = result.canonicalWord ?? trimmed;
       const fromIndex = result.connectFromIndex ?? trunkLen - 1;
-      const fromWord = result.connectedFrom ?? previous;
+      const fromWord = result.connectedFrom ?? activeWord;
       const nextEdge: ConfirmedEdge = {
         from: fromWord,
         to: canonical,
@@ -430,7 +428,6 @@ export function useGame() {
             (branch.to === canonical || branchTip(branch) === canonical)
         );
         if (duplicate) {
-          setError(`"${trimmed}" is already explored from ${fromWord}.`);
           return false;
         }
 
@@ -518,7 +515,7 @@ export function useGame() {
       setSubmitting(false);
     }
     },
-    [confirmedBranches, confirmedEdges, finalizeScore, notePathArrival, path, puzzle, recordGuess, startTimer, status, totalGuesses, wrongGuesses]
+    [confirmedBranches, confirmedEdges, currentWord, finalizeScore, notePathArrival, path, puzzle, recordGuess, startTimer, status, totalGuesses, wrongGuesses]
   );
 
   return {

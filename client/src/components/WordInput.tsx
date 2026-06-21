@@ -1,24 +1,21 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 
 interface WordInputProps {
   disabled?: boolean;
   busy?: boolean;
-  error?: string | null;
   onChange?: (value: string) => void;
   onTypingStart?: () => void;
   onSubmit: (word: string) => boolean | Promise<boolean>;
 }
 
-export function WordInput({ disabled, busy, error, onChange, onTypingStart, onSubmit }: WordInputProps) {
+function triggerShake(setShake: (value: boolean) => void): void {
+  setShake(true);
+  window.setTimeout(() => setShake(false), 400);
+}
+
+export function WordInput({ disabled, busy, onChange, onTypingStart, onSubmit }: WordInputProps) {
   const [value, setValue] = useState("");
   const [shake, setShake] = useState(false);
-
-  useEffect(() => {
-    if (!error) return;
-    setShake(true);
-    const timer = window.setTimeout(() => setShake(false), 400);
-    return () => window.clearTimeout(timer);
-  }, [error]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -27,6 +24,8 @@ export function WordInput({ disabled, busy, error, onChange, onTypingStart, onSu
     if (accepted) {
       setValue("");
       onChange?.("");
+    } else {
+      triggerShake(setShake);
     }
   };
 
@@ -37,12 +36,6 @@ export function WordInput({ disabled, busy, error, onChange, onTypingStart, onSu
         void handleSubmit(event);
       }}
     >
-      {error && (
-        <p className="word-input__error" role="alert">
-          {error}
-        </p>
-      )}
-
       <div className="word-input__field">
         <input
           type="text"

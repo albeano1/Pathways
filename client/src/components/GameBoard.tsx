@@ -86,7 +86,6 @@ export function GameBoard() {
           <WordInput
             disabled={!playing}
             busy={submitting}
-            error={playing ? error : null}
             onTypingStart={startTimer}
             onSubmit={submitWord}
           />

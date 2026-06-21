@@ -100,6 +100,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
         /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : getPuzzleDateKey();
       const puzzle = puzzles.getDaily(puzzleDate);
 
+      res.set("Cache-Control", "no-store");
       res.json({
         id: puzzle.id,
         start: puzzle.start,

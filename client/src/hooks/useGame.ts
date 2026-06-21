@@ -16,18 +16,22 @@ import {
 import type { ValidateStepResponse } from "../../../shared/types";
 import { getDebugPuzzleFromUrl } from "../debugPuzzle";
 import {
-  clearGameState,
   loadGameState,
   saveGameState,
+  shouldRestoreSavedGame,
   type GameStatus,
   type PersistedGameState,
 } from "../gamePersistence";
 import { hopDurationsFromReachedAt, updatePathReachedAt } from "../hopTiming";
 import { resolveDailyPuzzle } from "../loadPuzzle";
-import { readPuzzleCache, writePuzzleCache } from "../puzzleCache";
+import {
+  clearDailySession,
+  purgeStaleDailySession,
+} from "../dailyStorage";
+import { writePuzzleCache } from "../puzzleCache";
 import { warmApi } from "../warmApi";
 import { getPuzzleDateKey } from "../../../shared/dailyPuzzle";
-import { recordSolve, recordWinStreak } from "../solveStats";
+import { recordSolve, recordWinStreak, isDailyPuzzle } from "../solveStats";
 
 export type { GameStatus };
 
@@ -83,20 +87,14 @@ function createFreshState() {
 }
 
 export function useGame() {
-  const initialPuzzleRef = useRef<Puzzle | null>(null);
-  const [puzzle, setPuzzle] = useState<Puzzle | null>(() => {
-    if (getDebugPuzzleFromUrl()) return null;
-    const cached = readPuzzleCache(getPuzzleDateKey());
-    initialPuzzleRef.current = cached;
-    return cached;
-  });
+  const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
   const [confirmedEdges, setConfirmedEdges] = useState<ConfirmedEdge[]>([]);
   const [confirmedBranches, setConfirmedBranches] = useState<ConfirmedBranch[]>([]);
   const [rejectedBranches, setRejectedBranches] = useState<RejectedBranch[]>([]);
   const [activeBranchId, setActiveBranchId] = useState<string | undefined>();
   const [status, setStatus] = useState<GameStatus>("playing");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(() => initialPuzzleRef.current === null);
+  const [loading, setLoading] = useState(() => getDebugPuzzleFromUrl() === null);
   const [submitting, setSubmitting] = useState(false);
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [totalGuesses, setTotalGuesses] = useState(0);
@@ -176,61 +174,54 @@ export function useGame() {
   useEffect(() => {
     let cancelled = false;
 
+    async function applyDailyPuzzle(fetched: Puzzle, todayKey: string) {
+      const saved = loadGameState();
+      if (saved && shouldRestoreSavedGame(saved, fetched, todayKey)) {
+        restoreSavedState(saved);
+      } else {
+        clearDailySession();
+        applyFreshState();
+      }
+
+      setPuzzle(fetched);
+      writePuzzleCache(fetched);
+      hydrated.current = true;
+    }
+
     async function init() {
       setError(null);
       const debug = getDebugPuzzleFromUrl();
-      const hadCachedPuzzle = initialPuzzleRef.current !== null && !debug;
+      const todayKey = getPuzzleDateKey();
 
-      if (hadCachedPuzzle && initialPuzzleRef.current) {
-        const saved = loadGameState();
-        if (
-          saved &&
-          saved.puzzleDate === initialPuzzleRef.current.puzzleDate &&
-          saved.puzzle.id === initialPuzzleRef.current.id
-        ) {
-          restoreSavedState(saved);
-        }
-        hydrated.current = true;
-      } else {
-        setLoading(true);
+      if (!debug) {
+        purgeStaleDailySession(todayKey);
       }
+
+      setLoading(true);
 
       try {
         const fetched = debug
           ? await fetchPuzzle({ start: debug.start, end: debug.end })
-          : await resolveDailyPuzzle(getPuzzleDateKey());
+          : await resolveDailyPuzzle(todayKey);
         if (cancelled) return;
 
-        if (
-          !hadCachedPuzzle ||
-          fetched.id !== initialPuzzleRef.current?.id ||
-          fetched.puzzleDate !== initialPuzzleRef.current?.puzzleDate
-        ) {
-          if (!debug) {
-            const saved = loadGameState();
-            if (
-              saved &&
-              saved.puzzleDate === fetched.puzzleDate &&
-              saved.puzzle.id === fetched.id
-            ) {
-              restoreSavedState(saved);
-            } else {
-              clearGameState();
-              applyFreshState();
-            }
-          } else {
-            applyFreshState();
-          }
-
+        if (debug) {
+          applyFreshState();
           setPuzzle(fetched);
           hydrated.current = true;
+          return;
         }
 
-        if (!debug) {
-          writePuzzleCache(fetched);
+        if (fetched.puzzleDate !== todayKey) {
+          throw new Error(`Daily puzzle is out of date (expected ${todayKey}).`);
         }
+
+        await applyDailyPuzzle(fetched, todayKey);
       } catch (err) {
-        if (!cancelled && !hadCachedPuzzle) {
+        if (!cancelled) {
+          clearDailySession();
+          applyFreshState();
+          setPuzzle(null);
           setError((err as Error).message);
         }
       } finally {
@@ -243,6 +234,57 @@ export function useGame() {
       cancelled = true;
     };
   }, [applyFreshState, restoreSavedState]);
+
+  useEffect(() => {
+    if (!puzzle || getDebugPuzzleFromUrl()) return;
+
+    let refreshing = false;
+
+    async function refreshIfNewDay() {
+      if (refreshing) return;
+
+      refreshing = true;
+      try {
+        const todayKey = getPuzzleDateKey();
+        const fetched = await resolveDailyPuzzle(todayKey);
+        if (
+          puzzle.puzzleDate === fetched.puzzleDate &&
+          puzzle.id === fetched.id &&
+          puzzle.start === fetched.start &&
+          puzzle.end === fetched.end
+        ) {
+          return;
+        }
+
+        purgeStaleDailySession(todayKey);
+        clearDailySession();
+        applyFreshState();
+        setPuzzle(fetched);
+        writePuzzleCache(fetched);
+        hydrated.current = true;
+      } catch {
+        // Retry on the next visibility tick or interval.
+      } finally {
+        refreshing = false;
+      }
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshIfNewDay();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(() => {
+      void refreshIfNewDay();
+    }, 60_000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+    };
+  }, [applyFreshState, puzzle]);
 
   useEffect(() => {
     if (!puzzle) return;
@@ -340,7 +382,7 @@ export function useGame() {
       setScore(optimisticScore);
       setStatsVisible(true);
       setSolveRecorded((recorded) => {
-        if (!recorded) {
+        if (!recorded && !getDebugPuzzleFromUrl() && isDailyPuzzle(puzzle)) {
           recordSolve(solveTimeMs);
           recordWinStreak(puzzle.puzzleDate);
           return true;

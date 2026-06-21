@@ -20,19 +20,27 @@ async function readApiError(response: Response, fallback: string): Promise<strin
 export async function fetchPuzzle(options?: {
   start?: string;
   end?: string;
+  date?: string;
 }): Promise<Puzzle> {
-  const debug = options?.start && options?.end
-    ? { start: options.start, end: options.end }
-    : getDebugPuzzleFromUrl();
-
   const params = new URLSearchParams();
-  if (debug?.start && debug?.end) {
-    params.set("start", debug.start);
-    params.set("end", debug.end);
+
+  if (options?.start && options?.end) {
+    params.set("start", options.start);
+    params.set("end", options.end);
+  } else if (options?.date) {
+    params.set("date", options.date);
+  } else {
+    const debug = getDebugPuzzleFromUrl();
+    if (debug?.start && debug?.end) {
+      params.set("start", debug.start);
+      params.set("end", debug.end);
+    }
   }
 
   const query = params.toString();
-  const response = await fetch(`${API_BASE}/api/puzzle${query ? `?${query}` : ""}`);
+  const response = await fetch(`${API_BASE}/api/puzzle${query ? `?${query}` : ""}`, {
+    cache: "no-store",
+  });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(body?.error ?? "Failed to load puzzle");

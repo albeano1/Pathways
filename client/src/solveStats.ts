@@ -52,6 +52,11 @@ function saveWinStreak(record: WinStreakRecord): void {
   }
 }
 
+/** True for generated daily puzzles (not custom ?puzzle= links). */
+export function isDailyPuzzle(puzzle: { id: string }): boolean {
+  return puzzle.id.startsWith("gen-");
+}
+
 export function recordSolve(solveTimeMs: number): void {
   const stats = loadSolveStats();
   stats.totalSolves += 1;

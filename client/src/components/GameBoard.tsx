@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { getDebugPuzzleFromUrl } from "../debugPuzzle";
-import { clearGameState } from "../gamePersistence";
+import { clearDailySession } from "../dailyStorage";
 import { useGame } from "../hooks/useGame";
 import { PathTree } from "./PathTree";
 import { WinPopup } from "./WinPopup";
@@ -32,7 +32,7 @@ export function GameBoard() {
   } = useGame();
 
   const handleNextPuzzle = () => {
-    clearGameState();
+    clearDailySession();
     window.location.reload();
   };
 
@@ -61,7 +61,7 @@ export function GameBoard() {
       <section className="panel panel--play">
         {debugPuzzle && (
           <p className="game-board__debug-tag">
-            Debug: {debugPuzzle.start} → {debugPuzzle.end}
+            Custom puzzle (not daily): {debugPuzzle.start} → {debugPuzzle.end}
           </p>
         )}
 

@@ -1,37 +1,41 @@
 import type { Puzzle } from "../../shared/types";
 import { getPuzzleDateKey } from "../../shared/dailyPuzzle";
 import { fetchPuzzle } from "./api/client";
-import { readPuzzleCache, writePuzzleCache } from "./puzzleCache";
+import {
+  clearPuzzleCache,
+  purgeStalePuzzleCache,
+  readPuzzleCache,
+  writePuzzleCache,
+} from "./puzzleCache";
 
-const STATIC_PUZZLE_URL = "/daily-puzzle.json";
-
-async function fetchStaticDailyPuzzle(dateKey: string): Promise<Puzzle | null> {
-  try {
-    const response = await fetch(STATIC_PUZZLE_URL, { cache: "force-cache" });
-    if (!response.ok) return null;
-
-    const puzzle = (await response.json()) as Puzzle;
-    if (puzzle.puzzleDate !== dateKey) return null;
-    if (!puzzle.id || !puzzle.start || !puzzle.end) return null;
-
-    return puzzle;
-  } catch {
-    return null;
+function assertDailyPuzzle(puzzle: Puzzle, dateKey: string): Puzzle {
+  if (puzzle.puzzleDate !== dateKey) {
+    throw new Error(`Expected puzzle for ${dateKey}, got ${puzzle.puzzleDate}.`);
   }
+  if (!puzzle.id.startsWith("gen-")) {
+    throw new Error("Received a custom puzzle instead of the daily puzzle.");
+  }
+  return puzzle;
 }
 
-/** Resolve today's puzzle from cache, static bundle, then API (slowest). */
+/**
+ * Resolve today's puzzle from the API using the client's Pacific calendar date.
+ * Avoids the baked daily-puzzle.json embed, which reflects deploy time and can
+ * be a day ahead of the live daily before midnight Pacific.
+ */
 export async function resolveDailyPuzzle(dateKey = getPuzzleDateKey()): Promise<Puzzle> {
-  const cached = readPuzzleCache(dateKey);
-  if (cached) return cached;
+  purgeStalePuzzleCache(dateKey);
 
-  const fromStatic = await fetchStaticDailyPuzzle(dateKey);
-  if (fromStatic) {
-    writePuzzleCache(fromStatic);
-    return fromStatic;
+  try {
+    const fromApi = assertDailyPuzzle(await fetchPuzzle({ date: dateKey }), dateKey);
+    writePuzzleCache(fromApi);
+    return fromApi;
+  } catch (apiError) {
+    const cached = readPuzzleCache(dateKey);
+    if (cached) return cached;
+
+    clearPuzzleCache();
+    if (apiError instanceof Error) throw apiError;
+    throw new Error("Could not load today's puzzle.");
   }
-
-  const fromApi = await fetchPuzzle();
-  writePuzzleCache(fromApi);
-  return fromApi;
 }

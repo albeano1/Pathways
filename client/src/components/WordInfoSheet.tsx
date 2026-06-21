@@ -6,6 +6,24 @@ interface WordInfoSheetProps {
   onClose: () => void;
 }
 
+function partOfSpeechClass(partOfSpeech: string): string {
+  const key = partOfSpeech.toLowerCase().trim().split(/\s+/)[0] ?? "other";
+  const known = new Set([
+    "noun",
+    "verb",
+    "adjective",
+    "adverb",
+    "pronoun",
+    "preposition",
+    "conjunction",
+    "interjection",
+    "article",
+    "determiner",
+    "exclamation",
+  ]);
+  return known.has(key) ? `word-info-sheet__pos--${key}` : "word-info-sheet__pos--other";
+}
+
 export function WordInfoSheet({ word, onClose }: WordInfoSheetProps) {
   const [loading, setLoading] = useState(false);
   const [lemma, setLemma] = useState("");
@@ -58,7 +76,11 @@ export function WordInfoSheet({ word, onClose }: WordInfoSheetProps) {
           <p className="word-info-sheet__loading">Loading...</p>
         ) : definition ? (
           <div className="word-info-sheet__section">
-            {partOfSpeech && <span className="word-info-sheet__pos">{partOfSpeech}</span>}
+            {partOfSpeech && (
+              <span className={`word-info-sheet__pos ${partOfSpeechClass(partOfSpeech)}`}>
+                {partOfSpeech}
+              </span>
+            )}
             <p className="word-info-sheet__definition">{definition}</p>
           </div>
         ) : (

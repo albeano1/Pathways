@@ -1109,11 +1109,77 @@ button {
   letter-spacing: 0.06em;
 }
 
+.word-info-sheet__pos--noun {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.word-info-sheet__pos--verb {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.word-info-sheet__pos--adjective {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.word-info-sheet__pos--adverb {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.word-info-sheet__pos--pronoun {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.word-info-sheet__pos--preposition,
+.word-info-sheet__pos--conjunction {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.word-info-sheet__pos--interjection,
+.word-info-sheet__pos--exclamation {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.word-info-sheet__pos--article,
+.word-info-sheet__pos--determiner {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.word-info-sheet__pos--other {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 .word-info-sheet__definition {
   margin: 0;
   color: #1e293b;
   font-size: 1rem;
   line-height: 1.55;
+}
+
+@media (max-width: 720px) {
+  .word-info-backdrop {
+    align-items: flex-end;
+    padding-left: 22px;
+    padding-right: 22px;
+    padding-bottom: max(64px, calc(env(safe-area-inset-bottom, 0px) + 58px));
+  }
+
+  .word-info-sheet {
+    width: 100%;
+    max-width: 340px;
+    border-radius: 18px;
+    max-height: min(52vh, 360px);
+    padding: 16px 16px max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.22);
+  }
 }
 
 @media (min-width: 721px) {

@@ -3,6 +3,7 @@ import {
   buildPluralAliasMap,
   generatePlurals,
   IRREGULAR_PLURALS,
+  morphologicalVariants,
   resolveLemmaWithAliases,
   singularizeCandidates,
 } from "./wordForms.js";
@@ -44,6 +45,14 @@ describe("singularizeCandidates", () => {
     expect(singularizeCandidates("children")).toContain("child");
     expect(singularizeCandidates("people")).toContain("person");
     expect(singularizeCandidates("mice")).toContain("mouse");
+  });
+});
+
+describe("morphologicalVariants", () => {
+  it("includes singular and plural graph lemmas", () => {
+    const lemmas = new Set(["line", "lines", "sentence"]);
+    const exists = (lemma: string) => lemmas.has(lemma);
+    expect(morphologicalVariants("lines", exists)).toEqual(["lines", "line"]);
   });
 });
 

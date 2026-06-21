@@ -12,6 +12,7 @@ import {
 import { getDbPath } from "./bootstrapGraphDb.js";
 import {
   buildPluralAliasMap,
+  morphologicalVariants,
   resolveLemmaWithAliases,
 } from "./wordForms.js";
 
@@ -452,6 +453,10 @@ export class GraphService {
     return true;
   }
 
+  private morphVariants(lemma: string): string[] {
+    return morphologicalVariants(lemma, (candidate) => this.lookupLemma(candidate) !== null);
+  }
+
   analyzeStep(
     from: string,
     to: string,
@@ -480,41 +485,48 @@ export class GraphService {
       };
     }
 
-    if (resolvedPath.includes(resolvedTo)) {
+    const toVariants = this.morphVariants(resolvedTo);
+    const duplicateVariant = toVariants.find((variant) => resolvedPath.includes(variant));
+    if (duplicateVariant) {
       return {
         valid: false,
         failureType: "duplicate",
         error:
-          resolvedTo !== normalizedTo
-            ? `"${to}" matches "${resolvedTo}", which is already in your path`
+          duplicateVariant !== normalizedTo
+            ? `"${to}" matches "${duplicateVariant}", which is already in your path`
             : `"${to}" is already in your path`,
       };
     }
 
     let connectFromIndex = -1;
     let connectRelation: string | undefined;
+    let connectedTo = resolvedTo;
     for (let i = resolvedPath.length - 1; i >= 0; i--) {
       const candidate = resolvedPath[i]!;
-      const candidateEdge = this.hasEdge(candidate, resolvedTo);
-      if (candidateEdge.valid) {
-        connectFromIndex = i;
-        connectRelation = candidateEdge.relation;
-        break;
+      for (const variant of toVariants) {
+        const candidateEdge = this.hasEdge(candidate, variant);
+        if (candidateEdge.valid) {
+          connectFromIndex = i;
+          connectRelation = candidateEdge.relation;
+          connectedTo = variant;
+          break;
+        }
       }
+      if (connectFromIndex >= 0) break;
     }
 
     if (connectFromIndex >= 0 && connectRelation) {
       const resolvedFromNode = resolvedPath[connectFromIndex]!;
-      const reachedGoal = resolvedTo === resolvedEnd;
+      const reachedGoal = connectedTo === resolvedEnd;
       const previousHopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedFromNode);
-      const hopsToEnd = reachedGoal ? 0 : this.distanceFromEnd(resolvedEnd, resolvedTo);
-      const canonicalWord = resolvedTo !== normalizedTo ? resolvedTo : undefined;
+      const hopsToEnd = reachedGoal ? 0 : this.distanceFromEnd(resolvedEnd, connectedTo);
+      const canonicalWord = connectedTo !== normalizedTo ? connectedTo : undefined;
       let proximity: Proximity | undefined;
 
       if (
         previousHopsToEnd !== null &&
         hopsToEnd !== null &&
-        resolvedTo !== resolvedEnd
+        connectedTo !== resolvedEnd
       ) {
         if (hopsToEnd < previousHopsToEnd) proximity = "closer";
         else if (hopsToEnd > previousHopsToEnd) proximity = "farther";
@@ -533,16 +545,25 @@ export class GraphService {
       };
     }
 
-    const canonicalWord = resolvedTo !== normalizedTo ? resolvedTo : undefined;
+    const canonicalWord = connectedTo !== normalizedTo ? connectedTo : undefined;
     const connectsTo = resolvedPath
       .filter((word) => word !== resolvedFrom)
-      .map((word) => {
-        const connection = this.hasEdge(word, resolvedTo);
-        return connection.valid
-          ? { word, relation: connection.relation! }
-          : null;
-      })
-      .filter((item): item is { word: string; relation: string } => item !== null);
+      .flatMap((word) =>
+        toVariants
+          .map((variant) => {
+            const connection = this.hasEdge(word, variant);
+            return connection.valid
+              ? { word, relation: connection.relation!, variant }
+              : null;
+          })
+          .filter((item): item is { word: string; relation: string; variant: string } => item !== null)
+      )
+      .filter(
+        (item, index, list) =>
+          list.findIndex((other) => other.word === item.word && other.variant === item.variant) ===
+          index
+      )
+      .map(({ word, relation }) => ({ word, relation }));
 
     return {
       valid: false,

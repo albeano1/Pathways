@@ -222,6 +222,10 @@ async function buildDatabase(selectedWords: Set<string>): Promise<void> {
       WHERE e.from_id = words.id OR e.to_id = words.id
     )
   `);
+
+  const { mergeMorphologicalDuplicates } = await import("../server/src/lemmaMerge.js");
+  mergeMorphologicalDuplicates(db);
+
   db.exec("ANALYZE");
   db.close();
 
@@ -352,6 +356,9 @@ async function main(): Promise<void> {
         WHERE e.from_id = words.id OR e.to_id = words.id
       )
     `);
+
+    const { mergeMorphologicalDuplicates } = await import("../server/src/lemmaMerge.js");
+    mergeMorphologicalDuplicates(db);
 
     db.close();
     console.log("Mini graph written.");

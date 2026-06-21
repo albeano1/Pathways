@@ -152,6 +152,35 @@ export function buildPluralAliasMap(lemmas: string[]): Map<string, string> {
   return aliasMap;
 }
 
+/** Lemmas that differ only by number (singular/plural) for an in-graph word. */
+export function morphologicalVariants(
+  lemma: string,
+  exists: (lemma: string) => boolean
+): string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  const add = (candidate: string) => {
+    if (!exists(candidate) || seen.has(candidate)) return;
+    seen.add(candidate);
+    ordered.push(candidate);
+  };
+
+  add(lemma);
+  for (const singular of singularizeCandidates(lemma)) {
+    add(singular);
+  }
+  for (const plural of generatePlurals(lemma)) {
+    add(plural);
+  }
+  for (const singular of singularizeCandidates(lemma)) {
+    for (const plural of generatePlurals(singular)) {
+      add(plural);
+    }
+  }
+
+  return ordered;
+}
+
 export function resolveLemmaWithAliases(
   word: string,
   lemmas: Set<string>,

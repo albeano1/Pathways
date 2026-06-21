@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { getDbPath } from "./bootstrapGraphDb.js";
+import { GraphService } from "./graph.js";
 import { createPuzzleTestGraph } from "./testGraph.js";
 
 describe("GraphService distance cache", () => {
@@ -17,5 +19,21 @@ describe("GraphService distance cache", () => {
     expect(result.hopsToEnd).toBe(7);
     expect(result.previousHopsToEnd).toBe(8);
     expect(result.proximity).toBe("closer");
+  });
+});
+
+describe("GraphService plural variants", () => {
+  let graph: GraphService;
+
+  beforeAll(() => {
+    graph = new GraphService(getDbPath());
+  });
+
+  it("accepts lines when line connects from sentence", () => {
+    graph.warmEndDistances("couplet");
+    const result = graph.analyzeStep("sentence", "lines", "couplet", ["sergeant", "sentence"]);
+    expect(result.valid).toBe(true);
+    expect(result.canonicalWord).toBe("line");
+    expect(result.hopsToEnd).toBe(1);
   });
 });

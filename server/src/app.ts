@@ -218,8 +218,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
       const response: WordInfoResponse = {
         lemma,
         inGraph: true,
-        definition: dictionary?.definition,
-        partOfSpeech: dictionary?.partOfSpeech,
+        senses: dictionary?.senses,
       };
       res.json(response);
     } catch (error) {

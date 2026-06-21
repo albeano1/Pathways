@@ -105,10 +105,14 @@ export interface HintResponse {
   error?: string;
 }
 
+export interface WordSense {
+  partOfSpeech?: string;
+  definition: string;
+}
+
 export interface WordInfoResponse {
   lemma: string;
   inGraph: boolean;
-  definition?: string;
-  partOfSpeech?: string;
+  senses?: WordSense[];
   error?: string;
 }

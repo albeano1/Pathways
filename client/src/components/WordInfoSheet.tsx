@@ -1,51 +1,60 @@
 import { useEffect, useState } from "react";
-import { fetchWordInfo } from "../wordInfo";
+import type { WordSense } from "../../../shared/types";
+import { fetchWordInfo, getCachedWordInfo } from "../wordInfo";
 
 interface WordInfoSheetProps {
   word: string | null;
   onClose: () => void;
 }
 
-function partOfSpeechClass(partOfSpeech: string): string {
-  const key = partOfSpeech.toLowerCase().trim().split(/\s+/)[0] ?? "other";
-  const known = new Set([
-    "noun",
-    "verb",
-    "adjective",
-    "adverb",
-    "pronoun",
-    "preposition",
-    "conjunction",
-    "interjection",
-    "article",
-    "determiner",
-    "exclamation",
-  ]);
-  return known.has(key) ? `word-info-sheet__pos--${key}` : "word-info-sheet__pos--other";
+function partOfSpeechAbbrev(partOfSpeech: string): string {
+  const key = partOfSpeech.toLowerCase().trim().split(/\s+/)[0] ?? "";
+  const map: Record<string, string> = {
+    noun: "n.",
+    verb: "v.",
+    adjective: "adj.",
+    adverb: "adv.",
+    pronoun: "pron.",
+    preposition: "prep.",
+    conjunction: "conj.",
+    interjection: "interj.",
+    exclamation: "exclam.",
+    article: "art.",
+    determiner: "det.",
+  };
+  return map[key] ?? partOfSpeech.toLowerCase();
 }
 
 export function WordInfoSheet({ word, onClose }: WordInfoSheetProps) {
   const [loading, setLoading] = useState(false);
   const [lemma, setLemma] = useState("");
-  const [definition, setDefinition] = useState<string | null>(null);
-  const [partOfSpeech, setPartOfSpeech] = useState<string | null>(null);
+  const [senses, setSenses] = useState<WordSense[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!word) return;
 
     let cancelled = false;
+    const key = word.trim().toLowerCase();
+    const cached = getCachedWordInfo(key);
+
+    if (cached) {
+      setLemma(cached.lemma);
+      setSenses(cached.senses ?? []);
+      setError(cached.error ?? null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setLemma(word);
-    setDefinition(null);
-    setPartOfSpeech(null);
+    setSenses([]);
 
     void fetchWordInfo(word).then((info) => {
       if (cancelled) return;
       setLemma(info.lemma);
-      setDefinition(info.definition ?? null);
-      setPartOfSpeech(info.partOfSpeech ?? null);
+      setSenses(info.senses ?? []);
       setError(info.error ?? null);
       setLoading(false);
     });
@@ -59,36 +68,44 @@ export function WordInfoSheet({ word, onClose }: WordInfoSheetProps) {
 
   return (
     <div className="word-info-backdrop" onClick={onClose}>
-      <div
+      <article
         className="word-info-sheet"
         role="dialog"
         aria-label={`Definition for ${lemma}`}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="word-info-sheet__header">
-          <h2 className="word-info-sheet__title">{lemma}</h2>
-          <button type="button" className="word-info-sheet__close" onClick={onClose}>
-            Close
-          </button>
-        </div>
+        <button
+          type="button"
+          className="word-info-sheet__close"
+          onClick={onClose}
+          aria-label="Close definition"
+        >
+          ×
+        </button>
+
+        <h2 className="word-info-sheet__headword">{lemma}</h2>
 
         {loading ? (
-          <p className="word-info-sheet__loading">Loading...</p>
-        ) : definition ? (
-          <div className="word-info-sheet__section">
-            {partOfSpeech && (
-              <span className={`word-info-sheet__pos ${partOfSpeechClass(partOfSpeech)}`}>
-                {partOfSpeech}
-              </span>
-            )}
-            <p className="word-info-sheet__definition">{definition}</p>
-          </div>
+          <p className="word-info-sheet__loading">Looking up entry…</p>
+        ) : senses.length > 0 ? (
+          <ol className="word-info-sheet__senses">
+            {senses.map((sense, index) => (
+              <li key={index} className="word-info-sheet__sense">
+                {sense.partOfSpeech && (
+                  <span className="word-info-sheet__pos">
+                    {partOfSpeechAbbrev(sense.partOfSpeech)}
+                  </span>
+                )}
+                <span className="word-info-sheet__definition">{sense.definition}</span>
+              </li>
+            ))}
+          </ol>
         ) : (
           <p className="word-info-sheet__note">
             {error ?? "No dictionary entry found for this word."}
           </p>
         )}
-      </div>
+      </article>
     </div>
   );
 }

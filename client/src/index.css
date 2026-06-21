@@ -1061,117 +1061,93 @@ button {
 }
 
 .word-info-sheet {
+  position: relative;
   width: 100%;
   max-width: 420px;
   max-height: min(70vh, 520px);
   overflow: auto;
-  background: #fff;
-  border-radius: 20px 20px 0 0;
-  padding: 18px 20px 24px;
-  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
-}
-
-.word-info-sheet__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.word-info-sheet__title {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #0f172a;
+  background: #faf7f2;
+  border: 1px solid #d4cfc4;
+  border-radius: 4px 4px 0 0;
+  padding: 0 0 20px;
+  box-shadow:
+    0 -8px 32px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: #1c1917;
 }
 
 .word-info-sheet__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
   border: none;
-  background: #f1f5f9;
-  color: #334155;
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
+  background: transparent;
+  color: #57534e;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.word-info-sheet__close:hover {
+  background: rgba(28, 25, 23, 0.06);
+}
+
+.word-info-sheet__headword {
+  margin: 0;
+  padding: 14px 44px 10px 20px;
+  font-size: 2rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #0c0a09;
+  border-bottom: 2px solid #1c1917;
 }
 
 .word-info-sheet__loading,
 .word-info-sheet__note {
-  margin: 0 0 12px;
-  color: #64748b;
+  margin: 0;
+  padding: 16px 20px 0;
+  color: #57534e;
   font-size: 0.95rem;
+  font-style: italic;
 }
 
-.word-info-sheet__section {
-  margin-bottom: 16px;
+.word-info-sheet__senses {
+  margin: 0;
+  padding: 14px 20px 0 36px;
+  list-style: decimal;
+}
+
+.word-info-sheet__sense {
+  padding-left: 6px;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #292524;
+}
+
+.word-info-sheet__sense:last-child {
+  margin-bottom: 0;
+}
+
+.word-info-sheet__sense::marker {
+  font-weight: 700;
+  color: #44403c;
 }
 
 .word-info-sheet__pos {
-  display: inline-block;
-  margin-bottom: 8px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: #e2e8f0;
-  color: #475569;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.word-info-sheet__pos--noun {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.word-info-sheet__pos--verb {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.word-info-sheet__pos--adjective {
-  background: #f3e8ff;
-  color: #7c3aed;
-}
-
-.word-info-sheet__pos--adverb {
-  background: #ccfbf1;
-  color: #0f766e;
-}
-
-.word-info-sheet__pos--pronoun {
-  background: #fce7f3;
-  color: #be185d;
-}
-
-.word-info-sheet__pos--preposition,
-.word-info-sheet__pos--conjunction {
-  background: #fef3c7;
-  color: #b45309;
-}
-
-.word-info-sheet__pos--interjection,
-.word-info-sheet__pos--exclamation {
-  background: #ffedd5;
-  color: #c2410c;
-}
-
-.word-info-sheet__pos--article,
-.word-info-sheet__pos--determiner {
-  background: #e2e8f0;
-  color: #475569;
-}
-
-.word-info-sheet__pos--other {
-  background: #f1f5f9;
-  color: #64748b;
+  font-style: italic;
+  font-weight: 600;
+  color: #57534e;
+  margin-right: 0.35em;
 }
 
 .word-info-sheet__definition {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1rem;
-  line-height: 1.55;
+  color: #1c1917;
 }
 
 @media (max-width: 720px) {
@@ -1185,10 +1161,19 @@ button {
   .word-info-sheet {
     width: 100%;
     max-width: 340px;
-    border-radius: 18px;
+    border-radius: 4px;
     max-height: min(52vh, 360px);
-    padding: 16px 16px max(18px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 8px));
     box-shadow: 0 8px 32px rgba(15, 23, 42, 0.22);
+  }
+
+  .word-info-sheet__headword {
+    font-size: 1.65rem;
+    padding: 12px 40px 8px 16px;
+  }
+
+  .word-info-sheet__senses {
+    padding: 12px 16px 0 32px;
   }
 }
 
@@ -1199,7 +1184,7 @@ button {
   }
 
   .word-info-sheet {
-    border-radius: 20px;
+    border-radius: 6px;
     max-height: min(80vh, 560px);
   }
 }

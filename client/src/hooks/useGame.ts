@@ -34,7 +34,8 @@ import {
 } from "../dailyStorage";
 import { writePuzzleCache } from "../puzzleCache";
 import { warmApi } from "../warmApi";
-import { hasStepContext, prefetchStepContext, resolveCachedStep } from "../stepContext";
+import { hasStepContext, getCachedLookupWords, prefetchStepContext, resolveCachedStep } from "../stepContext";
+import { prefetchWordInfo } from "../wordInfo";
 import { getPuzzleDateKey } from "../../../shared/dailyPuzzle";
 import { recordSolve, recordWinStreak, isDailyPuzzle } from "../solveStats";
 
@@ -353,10 +354,18 @@ export function useGame() {
   }, [puzzle?.end]);
 
   useEffect(() => {
+    if (!puzzle?.start || !puzzle?.end) return;
+    prefetchWordInfo([puzzle.start, puzzle.end]);
+  }, [puzzle?.start, puzzle?.end]);
+
+  useEffect(() => {
     if (!puzzle || status !== "playing") return;
 
     const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
-    void prefetchStepContext(puzzle.end, explorePath);
+    prefetchWordInfo([...explorePath, puzzle.end, ...getCachedLookupWords(puzzle.end, explorePath)]);
+    void prefetchStepContext(puzzle.end, explorePath).then(() => {
+      prefetchWordInfo([...explorePath, puzzle.end, ...getCachedLookupWords(puzzle.end, explorePath)]);
+    });
   }, [puzzle, confirmedEdges, confirmedBranches, status]);
 
   useEffect(() => {

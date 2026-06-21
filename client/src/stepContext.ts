@@ -69,6 +69,13 @@ export function resolveCachedStep(
   return null;
 }
 
+/** Words with precomputed valid guesses for the current explore path. */
+export function getCachedLookupWords(end: string, path: string[]): string[] {
+  const key = stepContextKey(end, path);
+  if (key !== cachedKey || !cachedContext) return [];
+  return Object.keys(cachedContext.lookups);
+}
+
 export async function prefetchStepContext(end: string, path: string[]): Promise<void> {
   const key = stepContextKey(end, path);
   if (key === cachedKey && cachedContext) return;

@@ -4,6 +4,8 @@ import {
   buildExplorePath,
   buildPathFromEdges,
   buildWinPathFromBranch,
+  extendBranchContinuation,
+  findBranchContainingWord,
   fetchPuzzle,
   scorePath,
   validateStep,
@@ -62,13 +64,6 @@ function syncBranchCounter(branches: ConfirmedBranch[], rejected: RejectedBranch
 function nextBranchId(): string {
   branchCounter += 1;
   return `branch-${branchCounter}`;
-}
-
-function findBranchByTip(
-  branches: ConfirmedBranch[],
-  word: string
-): ConfirmedBranch | undefined {
-  return branches.find((branch) => branchTip(branch) === word);
 }
 
 /** Word is not on the graph or has no edge to any node on the current path. */
@@ -362,11 +357,19 @@ export function useGame() {
     if (!puzzle || status !== "playing") return;
 
     const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
-    prefetchWordInfo([...explorePath, puzzle.end, ...getCachedLookupWords(puzzle.end, explorePath)]);
-    void prefetchStepContext(puzzle.end, explorePath).then(() => {
-      prefetchWordInfo([...explorePath, puzzle.end, ...getCachedLookupWords(puzzle.end, explorePath)]);
+    prefetchWordInfo([
+      ...explorePath,
+      puzzle.end,
+      ...getCachedLookupWords(puzzle.end, explorePath, currentWord),
+    ]);
+    void prefetchStepContext(puzzle.end, explorePath, currentWord).then(() => {
+      prefetchWordInfo([
+        ...explorePath,
+        puzzle.end,
+        ...getCachedLookupWords(puzzle.end, explorePath, currentWord),
+      ]);
     });
-  }, [puzzle, confirmedEdges, confirmedBranches, status]);
+  }, [puzzle, confirmedEdges, confirmedBranches, status, currentWord]);
 
   useEffect(() => {
     if (!hydrated.current || !puzzle || getDebugPuzzleFromUrl()) return;
@@ -484,6 +487,12 @@ export function useGame() {
     setStatsVisible(false);
   }, []);
 
+  const showStats = useCallback(() => {
+    if (status === "won" && score) {
+      setStatsVisible(true);
+    }
+  }, [score, status]);
+
   const submitWord = useCallback(
     async (word: string): Promise<SubmitResult> => {
       if (!puzzle || status !== "playing") return false;
@@ -498,14 +507,14 @@ export function useGame() {
       const activeWord = currentWord;
       const trunkLen = path.length;
 
-      let result = resolveCachedStep(puzzle.end, explorePath, trimmed);
+      let result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
 
-      if (!result && !hasStepContext(puzzle.end, explorePath)) {
+      if (!result && !hasStepContext(puzzle.end, explorePath, activeWord)) {
         setSubmitting(true);
-        await prefetchStepContext(puzzle.end, explorePath);
-        result = resolveCachedStep(puzzle.end, explorePath, trimmed);
+        await prefetchStepContext(puzzle.end, explorePath, activeWord);
+        result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
 
-        if (!result && !hasStepContext(puzzle.end, explorePath)) {
+        if (!result && !hasStepContext(puzzle.end, explorePath, activeWord)) {
           result = await validateStep(activeWord, trimmed, puzzle.end, explorePath);
         }
       }
@@ -603,13 +612,10 @@ export function useGame() {
       }
 
       if (fromIndex > trunkLen - 1) {
-        const branch = findBranchByTip(confirmedBranches, fromWord);
+        const branch = findBranchContainingWord(confirmedBranches, fromWord);
         if (!branch) return false;
 
-        const updatedBranch: ConfirmedBranch = {
-          ...branch,
-          continuation: [...branch.continuation, nextEdge],
-        };
+        const updatedBranch = extendBranchContinuation(branch, fromWord, nextEdge);
 
         setConfirmedBranches((current) =>
           current.map((item) => (item.id === branch.id ? updatedBranch : item))
@@ -674,6 +680,7 @@ export function useGame() {
     hopDurationsMs,
     statsVisible,
     dismissStats,
+    showStats,
     startTimer,
     submitWord,
     submitting,

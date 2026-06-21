@@ -1,6 +1,6 @@
 import type { ConfirmedBranch, ConfirmedEdge, Proximity } from "../../../shared/types";
 import type { PathNodeVariant } from "./PathNode";
-import { edgeLabelPoint, nodeBottomY, nodeVisualHeight, nodeWordTopY, visualHeightForVariant } from "./treeGeometry";
+import { edgeLabelPoint, nodeVisualHeight, visualHeightForVariant } from "./treeGeometry";
 import type { RenderArm, RenderNode } from "./treeModel";
 
 export interface LayoutNode {
@@ -68,6 +68,20 @@ export const CLOSER_EDGE = 44;
 const REJECTED_EDGE = 32;
 const STUB_EDGE = 12;
 
+/**
+ * Ease-out exponent for proximity-driven spacing. Remaining distance to the
+ * goal scales as (hopsToEnd / maxHops) ^ GAMMA, so the final approach collapses
+ * sharply: 1 hop away renders very short, 2 hops moderate, early hops longer.
+ * Higher values exaggerate the late compression.
+ */
+export const PROXIMITY_GAMMA = 2;
+
+/** Connector length as a function of remaining hops, used for fallback spacing and the goal marker. */
+export function edgeLengthForHops(hopsToEnd: number): number {
+  if (hopsToEnd <= 1) return STUB_EDGE;
+  return Math.round(STUB_EDGE + (CLOSER_EDGE - STUB_EDGE) * Math.min(1, (hopsToEnd - 1) / 3));
+}
+
 export function edgeSpacing(
   hopsToEnd?: number,
   proximity?: Proximity,
@@ -75,14 +89,13 @@ export function edgeSpacing(
 ): number {
   if (hopsToEnd === undefined) return REJECTED_EDGE;
   if (proximity === "farther" || proximity === "same") return STUB_EDGE;
-  if (proximity === "closer") return CLOSER_EDGE;
+  if (proximity === "closer") return edgeLengthForHops(hopsToEnd);
   return STUB_EDGE;
 }
 
 /** Space reserved between the current tip and the goal bar. */
 export function goalLinkSpacing(hopsToEnd: number): number {
-  if (hopsToEnd <= 1) return STUB_EDGE;
-  return edgeSpacing(hopsToEnd, "closer");
+  return edgeLengthForHops(hopsToEnd);
 }
 
 /** Max scale across every route from the root — trunk and all branches. */
@@ -161,8 +174,8 @@ export function targetWordTopForHops(
   if (maxHops <= 0) return startBottom;
   const goalAnchor = panelTreeBudget - BOTTOM_MARGIN - goalLinkSpacing(1);
   const trunkRange = Math.max(0, goalAnchor - startBottom);
-  const progress = (maxHops - hopsToEnd) / maxHops;
-  return startBottom + progress * trunkRange;
+  const remaining = Math.pow(Math.max(0, hopsToEnd) / maxHops, PROXIMITY_GAMMA);
+  return goalAnchor - remaining * trunkRange;
 }
 
 /** Estimate node block heights for a linear chain (trunk or branch). */
@@ -195,124 +208,17 @@ export function estimateTrunkNodeHeights(
 /** Minimum trunk gap when the panel is too short to fit content. */
 export const MIN_TRUNK_FILL = 8;
 
+/**
+ * Minimum length for a labeled connector so the relation pill (centered on the
+ * connector) does not overlap the node boxes. Applied to target placement; hard
+ * overflow compression may still fall back to MIN_TRUNK_FILL to fit deep paths.
+ */
+export const LABEL_MIN_GAP = 26;
+
 /** Extra space between the current tip glow and the goal bar. */
 const GOAL_TIP_CLEARANCE = 20;
 /** box-shadow on .path-node--current extends past layout height estimates. */
 const SHADOW_BLEED = 8;
-
-/** Enforce non-overlapping tops; each child sits at least MIN_TRUNK_FILL below its parent word bottom. */
-function enforceMonotonicTops(
-  tops: number[],
-  nodeHeights: number[],
-  startBottom: number,
-  stubIndices: Set<number>
-): number[] {
-  const fitted = [...tops];
-  let prevBottom = startBottom;
-  for (let i = 0; i < fitted.length; i++) {
-    const minTop = prevBottom + (stubIndices.has(i) ? STUB_EDGE : MIN_TRUNK_FILL);
-    fitted[i] = Math.max(fitted[i] ?? minTop, minTop);
-    prevBottom = fitted[i]! + (nodeHeights[i + 1] ?? visualHeightForVariant("confirmed"));
-  }
-  return fitted;
-}
-
-/** Pin the last hop below the goal line when the chain overflows and the tip is one hop out. */
-function pinTrunkTopsToGoal(
-  tops: number[],
-  nodeHeights: number[],
-  startBottom: number,
-  maxTipBottom: number,
-  stubIndices: Set<number>
-): number[] {
-  if (tops.length === 0) return tops;
-
-  let fitted = enforceMonotonicTops(tops, nodeHeights, startBottom, stubIndices);
-  const lastIdx = fitted.length - 1;
-  const lastHeight = nodeHeights[lastIdx + 1] ?? visualHeightForVariant("current");
-  const pinnedLastTop = maxTipBottom - lastHeight;
-  fitted[lastIdx] = pinnedLastTop;
-
-  for (let i = lastIdx - 1; i >= 0; i--) {
-    const childHeight = nodeHeights[i + 1] ?? visualHeightForVariant("confirmed");
-    const gap = stubIndices.has(i) ? STUB_EDGE : MIN_TRUNK_FILL;
-    fitted[i] = Math.min(fitted[i] ?? pinnedLastTop, fitted[i + 1]! - childHeight - gap);
-  }
-
-  let prevBottom = startBottom;
-  for (let i = 0; i < fitted.length; i++) {
-    const minTop = prevBottom + (stubIndices.has(i) ? STUB_EDGE : MIN_TRUNK_FILL);
-    fitted[i] =
-      i === lastIdx
-        ? Math.min(Math.max(fitted[i] ?? minTop, minTop), pinnedLastTop)
-        : Math.max(fitted[i] ?? minTop, minTop);
-    prevBottom = fitted[i]! + (nodeHeights[i + 1] ?? visualHeightForVariant("confirmed"));
-  }
-
-  if (prevBottom > maxTipBottom + 0.5 && lastIdx > 0) {
-    const overflow = prevBottom - maxTipBottom;
-    for (let i = 0; i < lastIdx; i++) {
-      const floor = startBottom + (stubIndices.has(i) ? STUB_EDGE : MIN_TRUNK_FILL);
-      fitted[i] = Math.max(floor, fitted[i]! - overflow);
-    }
-    prevBottom = startBottom;
-    for (let i = 0; i < fitted.length; i++) {
-      const minTop = prevBottom + (stubIndices.has(i) ? STUB_EDGE : MIN_TRUNK_FILL);
-      fitted[i] = i === lastIdx ? pinnedLastTop : Math.max(fitted[i] ?? minTop, minTop);
-      prevBottom = fitted[i]! + (nodeHeights[i + 1] ?? visualHeightForVariant("confirmed"));
-    }
-  }
-
-  return fitted;
-}
-
-function tipBottomFromTops(
-  tops: number[],
-  nodeHeights: number[],
-  startBottom: number
-): number {
-  if (tops.length === 0) return startBottom;
-  const lastIdx = tops.length - 1;
-  return tops[lastIdx]! + (nodeHeights[lastIdx + 1] ?? visualHeightForVariant("confirmed"));
-}
-
-/** Shrink the chain proportionally when it overflows but the tip is not yet on the final hop. */
-function scaleTopsProportionally(
-  tops: number[],
-  nodeHeights: number[],
-  startBottom: number,
-  maxTipBottom: number,
-  stubIndices: Set<number>
-): number[] {
-  const tipBottom = tipBottomFromTops(tops, nodeHeights, startBottom);
-  if (tipBottom <= maxTipBottom) return tops;
-  const anchor = startBottom;
-  const scale = (maxTipBottom - anchor) / (tipBottom - anchor);
-  const scaled = tops.map((top, i) => {
-    const childHeight = nodeHeights[i + 1] ?? visualHeightForVariant("confirmed");
-    const bottom = top + childHeight;
-    const newBottom = anchor + (bottom - anchor) * scale;
-    return newBottom - childHeight;
-  });
-  return enforceMonotonicTops(scaled, nodeHeights, startBottom, stubIndices);
-}
-
-/** Only compress when monotonic placement would cross the goal line. */
-function compressIfOverflow(
-  tops: number[],
-  nodeHeights: number[],
-  startBottom: number,
-  maxTipBottom: number,
-  stubIndices: Set<number>,
-  lastChildHops: number
-): number[] {
-  const tipBottom = tipBottomFromTops(tops, nodeHeights, startBottom);
-  if (tipBottom <= maxTipBottom) return tops;
-  if (lastChildHops === 1) {
-    return pinTrunkTopsToGoal(tops, nodeHeights, startBottom, maxTipBottom, stubIndices);
-  }
-  return scaleTopsProportionally(tops, nodeHeights, startBottom, maxTipBottom, stubIndices);
-}
 
 /** Lowest allowed bottom edge for the active path tip within the panel budget. */
 export function maxTipBottomForPanel(panelTreeBudget: number): number {
@@ -577,9 +483,29 @@ export function trunkEdgeSpacingsFromPath(confirmedEdges: ConfirmedEdge[]): numb
   return confirmedEdges.map((edge) => edgeSpacing(edge.hopsToEnd, edge.proximity));
 }
 
+/** Span of extra length (px) added to the longest progress hop in scroll mode. */
+const SCROLL_EASE_SPAN = 86;
+
 /**
- * Edge spacings for a linear route from root. Each route scales by its own hop count
- * and step count (edges.length); overflow compresses only when that route exceeds the panel.
+ * Eased weight for a progress edge: grows with the child's remaining hops, so
+ * far-from-goal hops absorb more length and near-goal hops stay short. Range (0, 1].
+ */
+function progressWeight(childHops: number, routeMaxHops: number): number {
+  if (routeMaxHops <= 0) return 1;
+  const ratio = Math.min(1, Math.max(0, childHops) / routeMaxHops);
+  return Math.pow(ratio, PROXIMITY_GAMMA);
+}
+
+/**
+ * Edge spacings for a linear route from root.
+ *
+ * The connector length encodes proximity to the goal: the gap shrinks sharply as
+ * the player nears the answer. The tip is anchored by its own remaining hops so
+ * the gap to the goal bar reflects closeness (1 hop away sits right above it,
+ * more hops float higher). The in-between gaps are distributed by an eased weight
+ * so early hops render long and near-goal hops short. On desktop the route fills
+ * the panel without overflowing; in scroll mode it keeps natural, graduated
+ * lengths and may extend past the panel.
  */
 export function computeLinearEdgeSpacings(
   chainWords: string[],
@@ -604,70 +530,60 @@ export function computeLinearEdgeSpacings(
   const routeMaxHops = globalMaxHopsForPath(initialHops, edgesForSpacing);
   const nodeHeights = estimateChainNodeHeights(chainWords, won, isActiveTip, forkVariant);
   const startBottom = nodeHeights[0] ?? visualHeightForVariant(forkVariant);
-  const maxTipBottom = maxTipBottomForPanel(panelTreeBudget);
-  const stubIndices = new Set<number>();
-  const fittedTops: number[] = [];
-  let parentWordBottom = startBottom;
+  const edgeCount = edgesForSpacing.length;
 
-  for (let edgeIndex = 0; edgeIndex < edgesForSpacing.length; edgeIndex++) {
-    const edge = edgesForSpacing[edgeIndex]!;
-    const childHops = edge.hopsToEnd ?? initialHops;
-    const childHeight = nodeHeights[edgeIndex + 1] ?? visualHeightForVariant("confirmed");
-    const isLastEdge = edgeIndex === edgesForSpacing.length - 1;
+  const isStub = edgesForSpacing.map(
+    (edge) => edge.proximity === "farther" || edge.proximity === "same"
+  );
+  const minGap = (index: number): number => (isStub[index] ? STUB_EDGE : LABEL_MIN_GAP);
+  const weights = edgesForSpacing.map((edge, index) =>
+    isStub[index] ? 0 : progressWeight(edge.hopsToEnd ?? initialHops, routeMaxHops)
+  );
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
 
-    if (edge.proximity === "farther" || edge.proximity === "same") {
-      stubIndices.add(edgeIndex);
-    }
-
-    const cappedTarget = targetWordTopForPathEdge(
-      childHops,
-      routeMaxHops,
-      panelTreeBudget,
-      startBottom,
-      childHeight,
-      isLastEdge
+  // Scroll mode: graduated lengths at a fixed scale, free to exceed the panel.
+  if (scrollMode) {
+    const maxWeight = Math.max(...weights, 1e-6);
+    return edgesForSpacing.map((_, index) =>
+      isStub[index] ? STUB_EDGE : LABEL_MIN_GAP + SCROLL_EASE_SPAN * (weights[index]! / maxWeight)
     );
-
-    let actualTop: number;
-    if (edge.proximity === "farther" || edge.proximity === "same") {
-      if (cappedTarget >= parentWordBottom) {
-        actualTop = cappedTarget;
-      } else {
-        actualTop = parentWordBottom + STUB_EDGE;
-      }
-    } else {
-      actualTop = Math.max(cappedTarget, parentWordBottom + MIN_TRUNK_FILL);
-    }
-
-    fittedTops.push(actualTop);
-    parentWordBottom = actualTop + childHeight;
   }
 
-  const lastChildHops =
-    edgesForSpacing[edgesForSpacing.length - 1]?.hopsToEnd ?? initialHops;
-  const compressedTops = scrollMode
-    ? enforceMonotonicTops(fittedTops, nodeHeights, startBottom, stubIndices)
-    : compressIfOverflow(
-        fittedTops,
-        nodeHeights,
-        startBottom,
-        maxTipBottom,
-        stubIndices,
-        lastChildHops
-      );
+  // Anchor the tip by its own remaining hops so the gap to the goal reads as closeness.
+  const goalAnchor = panelTreeBudget - BOTTOM_MARGIN - goalLinkSpacing(1);
+  const trunkRange = Math.max(0, goalAnchor - startBottom);
+  const maxTipBottom = maxTipBottomForPanel(panelTreeBudget);
+  const tipHops = edgesForSpacing[edgeCount - 1]?.hopsToEnd ?? initialHops;
+  const tipHeight = nodeHeights[edgeCount] ?? visualHeightForVariant("confirmed");
+  const tipGapToGoal = progressWeight(tipHops, routeMaxHops) * trunkRange;
+  const tipBottom = Math.min(goalAnchor - tipGapToGoal, maxTipBottom);
+  const tipTop = tipBottom - tipHeight;
 
-  const spacings: number[] = [];
-  parentWordBottom = startBottom;
-  for (let edgeIndex = 0; edgeIndex < edgesForSpacing.length; edgeIndex++) {
-    const edge = edgesForSpacing[edgeIndex]!;
-    const childHeight = nodeHeights[edgeIndex + 1] ?? visualHeightForVariant("confirmed");
-    const top = compressedTops[edgeIndex] ?? parentWordBottom + MIN_TRUNK_FILL;
-    const step = top - parentWordBottom;
-    spacings.push(step);
-    parentWordBottom = top + childHeight;
+  // Total vertical space shared by all gaps once intermediate node heights are removed.
+  let intermediateHeights = 0;
+  for (let index = 1; index < edgeCount; index++) {
+    intermediateHeights += nodeHeights[index] ?? visualHeightForVariant("confirmed");
+  }
+  const available = tipTop - startBottom - intermediateHeights;
+
+  const baseTotal = edgesForSpacing.reduce((sum, _, index) => sum + minGap(index), 0);
+
+  // Overflow: not enough room even for the minimum gaps — scale them down to fit.
+  if (available <= baseTotal) {
+    const scale = baseTotal > 0 ? Math.max(0, available) / baseTotal : 0;
+    return edgesForSpacing.map((_, index) =>
+      Math.max(MIN_TRUNK_FILL, minGap(index) * scale)
+    );
   }
 
-  return spacings;
+  // Distribute the surplus by eased weight: far hops grow, near-goal hops stay short.
+  const surplus = available - baseTotal;
+  return edgesForSpacing.map((_, index) => {
+    if (isStub[index]) return STUB_EDGE;
+    const share =
+      totalWeight > 0 ? weights[index]! / totalWeight : 1 / Math.max(1, edgeCount);
+    return LABEL_MIN_GAP + surplus * share;
+  });
 }
 
 export function computeTrunkEdgeSpacings(
@@ -797,7 +713,7 @@ export function appendGoalMarker(
   const goalId = "goal-ghost";
   if (layout.nodes.some((node) => node.id === goalId)) return layout;
 
-  const goalY = tip.y + visualHeightForVariant(tip.variant) + edgeSpacing(hopsToEnd);
+  const goalY = tip.y + visualHeightForVariant(tip.variant) + edgeLengthForHops(hopsToEnd);
   const goalNode: PositionedNode = {
     id: goalId,
     word: end,

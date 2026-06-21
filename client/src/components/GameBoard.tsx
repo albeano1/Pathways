@@ -26,6 +26,7 @@ export function GameBoard() {
     hopDurationsMs,
     statsVisible,
     dismissStats,
+    showStats,
     startTimer,
     submitWord,
     submitting,
@@ -78,11 +79,20 @@ export function GameBoard() {
           </p>
         )}
 
-        {playing && winStreak > 0 && (
-          <p className="game-board__streak-count" aria-label={`${winStreak} day win streak`}>
-            {winStreak}
-          </p>
-        )}
+        {(playing && winStreak > 0) || (status === "won" && score && !statsVisible) ? (
+          <div className="game-board__corner">
+            {playing && winStreak > 0 && (
+              <span className="game-board__streak-count" aria-label={`${winStreak} day win streak`}>
+                {winStreak}
+              </span>
+            )}
+            {status === "won" && score && !statsVisible && (
+              <button type="button" className="game-board__stats-link" onClick={showStats}>
+                Stats
+              </button>
+            )}
+          </div>
+        ) : null}
 
         <div className="play-stage">
           <PathTree

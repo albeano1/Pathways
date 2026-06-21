@@ -473,6 +473,42 @@ export class GraphService {
     return morphologicalVariants(lemma, (candidate) => this.lookupLemma(candidate) !== null);
   }
 
+  /** Pick a path node the guess connects to: active word first, otherwise the latest match. */
+  private pickPathConnection(
+    resolvedPath: string[],
+    resolvedFrom: string | null,
+    toVariants: string[]
+  ): { index: number; relation: string; connectedTo: string } | null {
+    const matches: Array<{ index: number; relation: string; connectedTo: string }> = [];
+
+    for (let i = 0; i < resolvedPath.length; i++) {
+      const candidate = resolvedPath[i]!;
+      for (const variant of toVariants) {
+        const candidateEdge = this.hasMorphEdge(candidate, variant);
+        if (candidateEdge.valid) {
+          matches.push({
+            index: i,
+            relation: candidateEdge.relation!,
+            connectedTo: candidateEdge.toLemma ?? variant,
+          });
+          break;
+        }
+      }
+    }
+
+    if (matches.length === 0) return null;
+
+    if (resolvedFrom) {
+      const activeIndex = resolvedPath.indexOf(resolvedFrom);
+      if (activeIndex >= 0) {
+        const activeMatch = matches.find((match) => match.index === activeIndex);
+        if (activeMatch) return activeMatch;
+      }
+    }
+
+    return matches.reduce((best, match) => (match.index > best.index ? match : best));
+  }
+
   analyzeStep(
     from: string,
     to: string,
@@ -514,24 +550,10 @@ export class GraphService {
       };
     }
 
-    let connectFromIndex = -1;
-    let connectRelation: string | undefined;
-    let connectedTo = resolvedTo;
-    for (let i = 0; i < resolvedPath.length; i++) {
-      const candidate = resolvedPath[i]!;
-      for (const variant of toVariants) {
-        const candidateEdge = this.hasMorphEdge(candidate, variant);
-        if (candidateEdge.valid) {
-          connectFromIndex = i;
-          connectRelation = candidateEdge.relation;
-          connectedTo = candidateEdge.toLemma ?? variant;
-          break;
-        }
-      }
-      if (connectFromIndex >= 0) break;
-    }
+    const connection = this.pickPathConnection(resolvedPath, resolvedFrom, toVariants);
 
-    if (connectFromIndex >= 0 && connectRelation) {
+    if (connection) {
+      const { index: connectFromIndex, relation: connectRelation, connectedTo } = connection;
       const resolvedFromNode = resolvedPath[connectFromIndex]!;
       const reachedGoal = connectedTo === resolvedEnd;
       const previousHopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedFromNode);
@@ -561,7 +583,7 @@ export class GraphService {
       };
     }
 
-    const canonicalWord = connectedTo !== normalizedTo ? connectedTo : undefined;
+    const canonicalWord = resolvedTo !== normalizedTo ? resolvedTo : undefined;
     const connectsTo = resolvedPath
       .flatMap((word) =>
         toVariants
@@ -594,7 +616,11 @@ export class GraphService {
   }
 
   /** Precompute valid guesses for every surface form that connects from the explore path. */
-  buildStepLookups(end: string, path: string[] = []): Record<string, ValidateStepResponse> {
+  buildStepLookups(
+    end: string,
+    path: string[] = [],
+    from?: string
+  ): Record<string, ValidateStepResponse> {
     this.warmEndDistances(end);
     const resolvedEnd = this.resolveLemma(end);
     const resolvedPath = path
@@ -602,7 +628,7 @@ export class GraphService {
       .filter(Boolean) as string[];
     if (!resolvedEnd || resolvedPath.length === 0) return {};
 
-    const tip = path[path.length - 1] ?? path[0] ?? "";
+    const activeFrom = this.resolveLemma(from ?? "") ?? resolvedPath[resolvedPath.length - 1] ?? "";
     const candidates = new Set<string>();
 
     for (const word of resolvedPath) {
@@ -619,7 +645,7 @@ export class GraphService {
 
     const lookups: Record<string, ValidateStepResponse> = {};
     for (const candidate of candidates) {
-      const response = this.analyzeStep(tip, candidate, end, path);
+      const response = this.analyzeStep(activeFrom, candidate, end, path);
       if (response.valid !== true) continue;
 
       lookups[candidate] = response;

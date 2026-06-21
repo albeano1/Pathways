@@ -62,11 +62,17 @@ button {
   font-size: 1.1rem;
 }
 
-.game-board__streak-count {
+.game-board__corner {
   position: absolute;
   top: 14px;
   right: 18px;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-board__streak-count {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
@@ -75,6 +81,25 @@ button {
   line-height: 1;
   pointer-events: none;
   user-select: none;
+}
+
+.game-board__stats-link {
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.game-board__stats-link:hover {
+  background: #fff;
+  border-color: #94a3b8;
+  color: #334155;
 }
 
 .game-board__input-area {

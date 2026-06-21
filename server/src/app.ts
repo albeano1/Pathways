@@ -146,6 +146,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
     try {
       const end = String(req.query.end ?? "").trim().toLowerCase();
       const pathParam = String(req.query.path ?? "").trim();
+      const from = String(req.query.from ?? "").trim().toLowerCase();
       const path = pathParam
         ? pathParam.split(",").map((word) => word.trim().toLowerCase()).filter(Boolean)
         : [];
@@ -159,7 +160,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
       const response: StepContextResponse = {
         end,
         path,
-        lookups: graph.buildStepLookups(end, path),
+        lookups: graph.buildStepLookups(end, path, from || undefined),
       };
       res.set("Cache-Control", "no-store");
       res.json(response);

@@ -9,8 +9,12 @@ declare global {
   }
 }
 
-export function stepContextKey(end: string, path: string[]): string {
-  return `${end.trim().toLowerCase()}|${path.map((word) => word.trim().toLowerCase()).join(",")}`;
+export function stepContextKey(end: string, path: string[], from?: string): string {
+  const activeFrom =
+    from?.trim().toLowerCase() ??
+    path[path.length - 1]?.trim().toLowerCase() ??
+    "";
+  return `${end.trim().toLowerCase()}|${path.map((word) => word.trim().toLowerCase()).join(",")}|${activeFrom}`;
 }
 
 let cachedKey = "";
@@ -21,16 +25,17 @@ let inflight: Promise<StepContextResponse | null> | null = null;
 export function getCachedStepLookup(
   end: string,
   path: string[],
-  word: string
+  word: string,
+  from?: string
 ): ValidateStepResponse | null {
-  const key = stepContextKey(end, path);
+  const key = stepContextKey(end, path, from);
   if (key !== cachedKey || !cachedContext) return null;
   return cachedContext.lookups[word.trim().toLowerCase()] ?? null;
 }
 
 /** True when the authoritative lookup table for this exact path is loaded. */
-export function hasStepContext(end: string, path: string[]): boolean {
-  return stepContextKey(end, path) === cachedKey && cachedContext !== null;
+export function hasStepContext(end: string, path: string[], from?: string): boolean {
+  return stepContextKey(end, path, from) === cachedKey && cachedContext !== null;
 }
 
 /**
@@ -42,9 +47,10 @@ export function hasStepContext(end: string, path: string[]): boolean {
 export function resolveCachedStep(
   end: string,
   path: string[],
-  word: string
+  word: string,
+  from?: string
 ): ValidateStepResponse | null {
-  const key = stepContextKey(end, path);
+  const key = stepContextKey(end, path, from);
   if (key !== cachedKey || !cachedContext) return null;
 
   const lookups = cachedContext.lookups;
@@ -70,14 +76,18 @@ export function resolveCachedStep(
 }
 
 /** Words with precomputed valid guesses for the current explore path. */
-export function getCachedLookupWords(end: string, path: string[]): string[] {
-  const key = stepContextKey(end, path);
+export function getCachedLookupWords(end: string, path: string[], from?: string): string[] {
+  const key = stepContextKey(end, path, from);
   if (key !== cachedKey || !cachedContext) return [];
   return Object.keys(cachedContext.lookups);
 }
 
-export async function prefetchStepContext(end: string, path: string[]): Promise<void> {
-  const key = stepContextKey(end, path);
+export async function prefetchStepContext(
+  end: string,
+  path: string[],
+  from?: string
+): Promise<void> {
+  const key = stepContextKey(end, path, from);
   if (key === cachedKey && cachedContext) return;
   if (key === inflightKey && inflight) {
     await inflight;
@@ -85,7 +95,7 @@ export async function prefetchStepContext(end: string, path: string[]): Promise<
   }
 
   inflightKey = key;
-  inflight = loadStepContext(end, path)
+  inflight = loadStepContext(end, path, from)
     .then((context) => {
       if (context) {
         cachedKey = key;
@@ -105,28 +115,37 @@ export async function prefetchStepContext(end: string, path: string[]): Promise<
 
 async function loadStepContext(
   end: string,
-  path: string[]
+  path: string[],
+  from?: string
 ): Promise<StepContextResponse | null> {
-  const key = stepContextKey(end, path);
+  const key = stepContextKey(end, path, from);
   const boot = typeof window !== "undefined" ? window.__pathwaysStepContextBoot : undefined;
   if (boot && path.length === 1) {
     const bootContext = await boot;
-    if (bootContext && stepContextKey(bootContext.end, bootContext.path) === key) {
+    if (
+      bootContext &&
+      stepContextKey(bootContext.end, bootContext.path, bootContext.path[0]) === key
+    ) {
       return bootContext;
     }
   }
 
-  return fetchStepContext(end, path);
+  return fetchStepContext(end, path, from);
 }
 
 async function fetchStepContext(
   end: string,
-  path: string[]
+  path: string[],
+  from?: string
 ): Promise<StepContextResponse | null> {
   const params = new URLSearchParams({
     end: end.trim().toLowerCase(),
     path: path.map((word) => word.trim().toLowerCase()).join(","),
   });
+  const activeFrom = from ?? path[path.length - 1];
+  if (activeFrom) {
+    params.set("from", activeFrom.trim().toLowerCase());
+  }
 
   try {
     const response = await fetch(`${API_BASE}/api/step-context?${params.toString()}`, {

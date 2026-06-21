@@ -68,12 +68,21 @@ describe("GraphService path connection search", () => {
     expect(result.connectFromIndex).toBe(4);
   });
 
-  it("prefers earlier path nodes when several could connect", () => {
+  it("prefers active from when several path nodes connect", () => {
     graph.warmEndDistances("goal");
-    const explorePath = ["sergeant", "sentence", "line"];
+    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
+    const result = graph.analyzeStep("cadet", "army", "goal", explorePath);
+    expect(result.valid).toBe(true);
+    expect(result.connectedFrom).toBe("cadet");
+    expect(result.connectFromIndex).toBe(4);
+  });
+
+  it("prefers latest matching node when active from does not connect", () => {
+    graph.warmEndDistances("goal");
+    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
     const result = graph.analyzeStep("line", "army", "goal", explorePath);
     expect(result.valid).toBe(true);
-    expect(result.connectedFrom).toBe("sergeant");
-    expect(result.connectFromIndex).toBe(0);
+    expect(result.connectedFrom).toBe("cadet");
+    expect(result.connectFromIndex).toBe(4);
   });
 });

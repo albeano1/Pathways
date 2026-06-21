@@ -39,7 +39,7 @@ async function main(): Promise<void> {
   const stepContext: StepContextResponse = {
     end: puzzle.end,
     path: [puzzle.start],
-    lookups: graph.buildStepLookups(puzzle.end, [puzzle.start]),
+    lookups: graph.buildStepLookups(puzzle.end, [puzzle.start], puzzle.start),
   };
   fs.writeFileSync(STEP_CONTEXT_PATH, `${JSON.stringify(stepContext)}\n`);
 

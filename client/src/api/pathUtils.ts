@@ -10,6 +10,42 @@ export function branchTip(branch: ConfirmedBranch): string {
   return last?.to ?? branch.to;
 }
 
+/** Branch whose root or continuation contains `word` (not the trunk attachment `branch.from`). */
+export function findBranchContainingWord(
+  branches: ConfirmedBranch[],
+  word: string
+): ConfirmedBranch | undefined {
+  return branches.find(
+    (branch) =>
+      branch.to === word || branch.continuation.some((edge) => edge.to === word)
+  );
+}
+
+/** Extend a branch from any node on its chain, truncating any dead-end suffix after that node. */
+export function extendBranchContinuation(
+  branch: ConfirmedBranch,
+  fromWord: string,
+  nextEdge: ConfirmedEdge
+): ConfirmedBranch {
+  if (fromWord === branchTip(branch)) {
+    return { ...branch, continuation: [...branch.continuation, nextEdge] };
+  }
+
+  if (fromWord === branch.to) {
+    return { ...branch, continuation: [nextEdge] };
+  }
+
+  const splitIndex = branch.continuation.findIndex((edge) => edge.to === fromWord);
+  if (splitIndex < 0) {
+    return { ...branch, continuation: [...branch.continuation, nextEdge] };
+  }
+
+  return {
+    ...branch,
+    continuation: [...branch.continuation.slice(0, splitIndex + 1), nextEdge],
+  };
+}
+
 export function buildExplorePath(
   start: string,
   trunkEdges: ConfirmedEdge[],

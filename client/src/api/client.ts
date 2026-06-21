@@ -158,4 +158,11 @@ export type {
   ScoreResponse,
 } from "../../../shared/types";
 
-export { buildPathFromEdges, branchTip, buildExplorePath, buildWinPathFromBranch } from "./pathUtils";
+export {
+  buildPathFromEdges,
+  branchTip,
+  buildExplorePath,
+  buildWinPathFromBranch,
+  extendBranchContinuation,
+  findBranchContainingWord,
+} from "./pathUtils";

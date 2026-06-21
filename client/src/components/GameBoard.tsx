@@ -21,7 +21,6 @@ export function GameBoard() {
     currentHopsToEnd,
     status,
     error,
-    loading,
     submitting,
     score,
     hopDurationsMs,
@@ -36,18 +35,23 @@ export function GameBoard() {
     window.location.reload();
   };
 
-  if (loading && !puzzle) {
-    return (
-      <div className="game-board game-board--loading">
-        <p className="game-board__loading">Loading puzzle...</p>
-      </div>
-    );
-  }
-
   if (!puzzle) {
+    if (error) {
+      return (
+        <div className="game-board game-board--loading">
+          <p className="game-board__loading">{error}</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="game-board game-board--loading">
-        <p className="game-board__loading">{error ?? "Could not load a puzzle."}</p>
+      <div className="game-board">
+        <section className="panel panel--play">
+          <div className="play-stage play-stage--boot" />
+          <div className="play-dock">
+            <WordInput disabled busy={false} onTypingStart={() => {}} onSubmit={async () => false} />
+          </div>
+        </section>
       </div>
     );
   }
@@ -55,6 +59,13 @@ export function GameBoard() {
   const playing = status === "playing";
   const displayHopsToEnd =
     currentHopsToEnd ?? (confirmedEdges.length === 0 ? puzzle.optimalHops : undefined);
+  const closeCount =
+    playing &&
+    displayHopsToEnd !== undefined &&
+    displayHopsToEnd > 0 &&
+    displayHopsToEnd <= 3
+      ? displayHopsToEnd
+      : undefined;
 
   return (
     <div className="game-board">
@@ -66,14 +77,13 @@ export function GameBoard() {
         )}
 
         {playing && (
-          <div className="game-board__stats" aria-live="polite">
-            <div
-              className="game-board__stat game-board__stat--hops"
-              aria-label={`${displayHopsToEnd ?? puzzle.optimalHops} hops to goal`}
-            >
-              {displayHopsToEnd ?? puzzle.optimalHops}
-            </div>
-          </div>
+          <p
+            className="game-board__hops-count"
+            aria-live="polite"
+            aria-label={`${displayHopsToEnd ?? puzzle.optimalHops} hops to goal`}
+          >
+            {displayHopsToEnd ?? puzzle.optimalHops}
+          </p>
         )}
 
         <div className="play-stage">
@@ -89,6 +99,7 @@ export function GameBoard() {
             hopsToEnd={displayHopsToEnd ?? puzzle.optimalHops}
             initialHops={puzzle.optimalHops}
             complete={status === "won"}
+            closeCount={closeCount}
             onWordSelect={setSelectedWord}
           />
         </div>

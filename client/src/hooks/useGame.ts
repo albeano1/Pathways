@@ -23,6 +23,9 @@ import {
   type PersistedGameState,
 } from "../gamePersistence";
 import { hopDurationsFromReachedAt, updatePathReachedAt } from "../hopTiming";
+import { getBootSnapshot } from "../bootstrapGame";
+import { prefetchDailyPuzzle } from "../prefetchPuzzle";
+import { getPuzzleRefresh } from "../earlyPuzzleBoot";
 import { resolveDailyPuzzle } from "../loadPuzzle";
 import {
   clearDailySession,
@@ -87,14 +90,17 @@ function createFreshState() {
 }
 
 export function useGame() {
-  const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
+  const boot = getBootSnapshot();
+  const [puzzle, setPuzzle] = useState<Puzzle | null>(() => boot.puzzle);
   const [confirmedEdges, setConfirmedEdges] = useState<ConfirmedEdge[]>([]);
   const [confirmedBranches, setConfirmedBranches] = useState<ConfirmedBranch[]>([]);
   const [rejectedBranches, setRejectedBranches] = useState<RejectedBranch[]>([]);
   const [activeBranchId, setActiveBranchId] = useState<string | undefined>();
   const [status, setStatus] = useState<GameStatus>("playing");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(() => getDebugPuzzleFromUrl() === null);
+  const [loading, setLoading] = useState(
+    () => getDebugPuzzleFromUrl() !== null || boot.puzzle === null
+  );
   const [submitting, setSubmitting] = useState(false);
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [totalGuesses, setTotalGuesses] = useState(0);
@@ -195,14 +201,21 @@ export function useGame() {
 
       if (!debug) {
         purgeStaleDailySession(todayKey);
+        if (boot.saved && boot.puzzle && shouldRestoreSavedGame(boot.saved, boot.puzzle, todayKey)) {
+          restoreSavedState(boot.saved);
+          hydrated.current = true;
+        }
       }
 
-      setLoading(true);
+      const needsLoadingScreen = debug ? true : boot.puzzle === null;
+      if (needsLoadingScreen) {
+        setLoading(true);
+      }
 
       try {
         const fetched = debug
           ? await fetchPuzzle({ start: debug.start, end: debug.end })
-          : await resolveDailyPuzzle(todayKey);
+          : await prefetchDailyPuzzle(todayKey);
         if (cancelled) return;
 
         if (debug) {
@@ -216,9 +229,41 @@ export function useGame() {
           throw new Error(`Daily puzzle is out of date (expected ${todayKey}).`);
         }
 
+        if (
+          boot.puzzle?.puzzleDate === fetched.puzzleDate &&
+          boot.puzzle.id === fetched.id &&
+          boot.puzzle.start === fetched.start &&
+          boot.puzzle.end === fetched.end
+        ) {
+          writePuzzleCache(fetched);
+          hydrated.current = true;
+
+          const refresh = getPuzzleRefresh();
+          if (refresh) {
+            void refresh.then((live) => {
+              if (
+                cancelled ||
+                !live ||
+                (live.puzzleDate === fetched.puzzleDate &&
+                  live.id === fetched.id &&
+                  live.start === fetched.start &&
+                  live.end === fetched.end)
+              ) {
+                return;
+              }
+              void applyDailyPuzzle(live, todayKey);
+            });
+          }
+          return;
+        }
+
         await applyDailyPuzzle(fetched, todayKey);
       } catch (err) {
         if (!cancelled) {
+          if (boot.puzzle) {
+            hydrated.current = true;
+            return;
+          }
           clearDailySession();
           applyFreshState();
           setPuzzle(null);
@@ -233,7 +278,7 @@ export function useGame() {
     return () => {
       cancelled = true;
     };
-  }, [applyFreshState, restoreSavedState]);
+  }, [applyFreshState, boot.puzzle, boot.saved, restoreSavedState]);
 
   useEffect(() => {
     if (!puzzle || getDebugPuzzleFromUrl()) return;

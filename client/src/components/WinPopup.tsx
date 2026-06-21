@@ -88,10 +88,12 @@ export function WinPopup({
             )}
           </div>
 
-          <div className="win-popup__stat">
-            <span className="win-popup__stat-value">{streak}</span>
-            <span className="win-popup__stat-label">Streak</span>
-          </div>
+          {streak > 0 && (
+            <div className="win-popup__stat">
+              <span className="win-popup__stat-value">{streak}</span>
+              <span className="win-popup__stat-label">Win streak</span>
+            </div>
+          )}
 
           {averageTimeMs !== null && (
             <div className="win-popup__stat">

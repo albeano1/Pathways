@@ -1,5 +1,8 @@
 const PST = "America/Los_Angeles";
 
+/** First Pacific calendar day the public daily puzzle was live. */
+export const DAILY_LAUNCH_DATE = "2026-06-19";
+
 /** YYYY-MM-DD calendar date in Pacific time (handles PST/PDT). */
 export function getPuzzleDateKey(date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -36,6 +39,16 @@ export function nextPuzzleDateKey(dateKey: string): string {
   throw new Error(`Could not find next date after ${dateKey}`);
 }
 
+/** Previous calendar date key before `dateKey` in Pacific time. */
+export function previousPuzzleDateKey(dateKey: string): string {
+  const anchor = anchorTimestampOnDateKey(dateKey);
+  for (let t = anchor - 60 * 60 * 1000; t > anchor - 48 * 60 * 60 * 1000; t -= 60 * 60 * 1000) {
+    const key = getPuzzleDateKey(new Date(t));
+    if (key !== dateKey) return key;
+  }
+  throw new Error(`Could not find previous date before ${dateKey}`);
+}
+
 /** Instant when the next daily puzzle becomes available (midnight Pacific). */
 export function getNextPuzzleAt(now = new Date()): Date {
   const tomorrowKey = nextPuzzleDateKey(getPuzzleDateKey(now));
@@ -64,6 +77,25 @@ export function getNextPuzzleAtForDateKey(dateKey: string): Date {
 /** True when `currentDateKey` is the Pacific calendar day after `previousDateKey`. */
 export function isNextPuzzleDate(previousDateKey: string, currentDateKey: string): boolean {
   return nextPuzzleDateKey(previousDateKey) === currentDateKey;
+}
+
+/** Inclusive count of Pacific puzzle calendar days from `fromDateKey` through `toDateKey`. */
+export function countPuzzleDaysInclusive(fromDateKey: string, toDateKey: string): number {
+  if (toDateKey < fromDateKey) return 0;
+
+  let count = 0;
+  let dateKey = fromDateKey;
+  while (true) {
+    count += 1;
+    if (dateKey === toDateKey) break;
+    dateKey = nextPuzzleDateKey(dateKey);
+  }
+  return count;
+}
+
+/** Highest streak possible through `toDateKey` since the public daily launch. */
+export function maxPossibleWinStreak(toDateKey = getPuzzleDateKey()): number {
+  return countPuzzleDaysInclusive(DAILY_LAUNCH_DATE, toDateKey);
 }
 
 /** Deterministic 32-bit hash for seeding daily puzzle selection. */

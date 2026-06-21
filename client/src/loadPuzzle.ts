@@ -7,6 +7,7 @@ import {
   readPuzzleCache,
   writePuzzleCache,
 } from "./puzzleCache";
+import { writeSessionBootPuzzle } from "./earlyPuzzleBoot";
 
 function assertDailyPuzzle(puzzle: Puzzle, dateKey: string): Puzzle {
   if (puzzle.puzzleDate !== dateKey) {
@@ -30,6 +31,7 @@ export async function resolveDailyPuzzle(dateKey = getPuzzleDateKey()): Promise<
   try {
     const fromApi = assertDailyPuzzle(await fetchPuzzle({ date: todayKey }), todayKey);
     writePuzzleCache(fromApi);
+    writeSessionBootPuzzle(fromApi);
     return fromApi;
   } catch (apiError) {
     const cached = readPuzzleCache(todayKey);

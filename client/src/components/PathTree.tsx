@@ -26,6 +26,7 @@ interface PathTreeProps {
   hopsToEnd: number;
   initialHops: number;
   complete?: boolean;
+  closeCount?: number;
   onWordSelect?: (word: string) => void;
 }
 
@@ -41,6 +42,7 @@ export function PathTree({
   hopsToEnd,
   initialHops,
   complete,
+  closeCount,
   onWordSelect,
 }: PathTreeProps) {
   const pathTreeRef = useRef<HTMLDivElement>(null);
@@ -189,7 +191,13 @@ export function PathTree({
       </div>
 
       <div className="path-tree__goal-foot">
-        <GoalBar ref={goalBarRef} word={end} complete={won} onWordSelect={onWordSelect} />
+        <GoalBar
+          ref={goalBarRef}
+          word={end}
+          complete={won}
+          closeCount={closeCount}
+          onWordSelect={onWordSelect}
+        />
       </div>
     </div>
   );

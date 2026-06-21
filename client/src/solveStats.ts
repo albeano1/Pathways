@@ -1,4 +1,10 @@
-import { isNextPuzzleDate } from "../../shared/dailyPuzzle";
+import {
+  DAILY_LAUNCH_DATE,
+  getPuzzleDateKey,
+  isNextPuzzleDate,
+  maxPossibleWinStreak,
+  previousPuzzleDateKey,
+} from "../../shared/dailyPuzzle";
 import { formatSolveTime } from "./components/formatSolveTime";
 import type { ScoreResponse } from "../../shared/types";
 import { APP_NAME, APP_URL } from "../../shared/appName";
@@ -12,8 +18,12 @@ interface SolveStatsRecord {
 }
 
 interface WinStreakRecord {
-  streak: number;
-  lastWinDate: string | null;
+  wonDates: string[];
+}
+
+interface LegacyWinStreakRecord {
+  streak?: number;
+  lastWinDate?: string | null;
 }
 
 function loadSolveStats(): SolveStatsRecord {
@@ -37,10 +47,22 @@ function saveSolveStats(stats: SolveStatsRecord): void {
 function loadWinStreak(): WinStreakRecord {
   try {
     const raw = localStorage.getItem(STREAK_KEY);
-    if (!raw) return { streak: 0, lastWinDate: null };
-    return JSON.parse(raw) as WinStreakRecord;
+    if (!raw) return { wonDates: [] };
+
+    const parsed = JSON.parse(raw) as WinStreakRecord | LegacyWinStreakRecord;
+    if (Array.isArray(parsed.wonDates)) {
+      return { wonDates: [...new Set(parsed.wonDates)].sort() };
+    }
+
+    // Older counter-only format — keep at most the last recorded win as a single day.
+    const legacy = parsed as LegacyWinStreakRecord;
+    if (legacy.lastWinDate && (legacy.streak ?? 0) > 0) {
+      return { wonDates: [legacy.lastWinDate] };
+    }
+
+    return { wonDates: [] };
   } catch {
-    return { streak: 0, lastWinDate: null };
+    return { wonDates: [] };
   }
 }
 
@@ -50,6 +72,36 @@ function saveWinStreak(record: WinStreakRecord): void {
   } catch {
     // Ignore storage errors.
   }
+}
+
+/** Consecutive completed daily wins ending at the latest win on or before `asOfDate`. */
+export function computeWinStreak(wonDates: string[], asOfDate: string): number {
+  const wins = [...new Set(wonDates.filter((date) => date >= DAILY_LAUNCH_DATE))].sort();
+  if (wins.length === 0) return 0;
+
+  const wonSet = new Set(wins);
+  let endDate = asOfDate;
+
+  while (endDate >= DAILY_LAUNCH_DATE && !wonSet.has(endDate)) {
+    endDate = previousPuzzleDateKey(endDate);
+  }
+
+  if (!wonSet.has(endDate)) return 0;
+
+  // Streak is broken once a calendar day is missed.
+  if (endDate !== asOfDate && !isNextPuzzleDate(endDate, asOfDate)) {
+    return 0;
+  }
+
+  let streak = 0;
+  let dateKey = endDate;
+  while (dateKey >= DAILY_LAUNCH_DATE && wonSet.has(dateKey)) {
+    streak += 1;
+    if (dateKey === DAILY_LAUNCH_DATE) break;
+    dateKey = previousPuzzleDateKey(dateKey);
+  }
+
+  return Math.min(streak, maxPossibleWinStreak(asOfDate));
 }
 
 /** True for generated daily puzzles (not custom ?puzzle= links). */
@@ -64,30 +116,19 @@ export function recordSolve(solveTimeMs: number): void {
   saveSolveStats(stats);
 }
 
-/** Update daily win streak for a Pacific calendar puzzle date. Returns the new streak. */
+/** Record a completed daily win. Returns the new win streak. */
 export function recordWinStreak(puzzleDate: string): number {
   const record = loadWinStreak();
-
-  if (record.lastWinDate === puzzleDate) {
-    return record.streak;
+  if (!record.wonDates.includes(puzzleDate)) {
+    record.wonDates = [...record.wonDates, puzzleDate].sort();
+    saveWinStreak(record);
   }
-
-  if (
-    record.lastWinDate === null ||
-    !isNextPuzzleDate(record.lastWinDate, puzzleDate)
-  ) {
-    record.streak = 1;
-  } else {
-    record.streak += 1;
-  }
-
-  record.lastWinDate = puzzleDate;
-  saveWinStreak(record);
-  return record.streak;
+  return computeWinStreak(record.wonDates, puzzleDate);
 }
 
-export function getWinStreak(): number {
-  return loadWinStreak().streak;
+export function getWinStreak(now = new Date()): number {
+  const record = loadWinStreak();
+  return computeWinStreak(record.wonDates, getPuzzleDateKey(now));
 }
 
 export function getAverageSolveTimeMs(): number | null {
@@ -155,12 +196,11 @@ export function buildShareText(options: {
   const { puzzleDateLabel, score, streak, hopDurationsMs, averageTimeMs } = options;
   const perfectPath = score.playerHops === score.optimalHops;
 
-  const lines = [
-    APP_NAME,
-    puzzleDateLabel,
-    buildHopTrailLine(score, hopDurationsMs),
-    `${streak} day streak`,
-  ];
+  const lines = [APP_NAME, puzzleDateLabel, buildHopTrailLine(score, hopDurationsMs)];
+
+  if (streak > 0) {
+    lines.push(`${streak} day streak`);
+  }
 
   if (averageTimeMs !== null) {
     lines.push(`Avg: ${formatSolveTime(averageTimeMs)}`);

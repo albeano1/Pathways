@@ -28,6 +28,7 @@ export function GameBoard() {
     dismissStats,
     startTimer,
     submitWord,
+    submitting,
   } = useGame();
 
   const handleNextPuzzle = () => {
@@ -104,6 +105,7 @@ export function GameBoard() {
         <div className="play-dock">
           <WordInput
             disabled={!playing}
+            submitting={submitting}
             onTypingStart={startTimer}
             onSubmit={submitWord}
           />

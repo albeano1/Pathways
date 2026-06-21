@@ -3,6 +3,7 @@ import type { ConfirmedBranch, ConfirmedEdge, RejectedBranch } from "../../../sh
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTreeScale } from "../hooks/useTreeScale";
 import { GoalBar } from "./GoalBar";
+import { TrunkGoalLink } from "./TrunkGoalLink";
 import { TreeCanvas } from "./TreeCanvas";
 import { buildRenderTree } from "./treeModel";
 import { nodeBottomY } from "./treeGeometry";
@@ -141,7 +142,7 @@ export function PathTree({
   }, [goalGapHeight]);
 
   useLayoutEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile || won) return;
     const treeArea = treeAreaRef.current;
     if (!treeArea) return;
 
@@ -156,7 +157,7 @@ export function PathTree({
     if (delta > 8) {
       treeArea.scrollTo({ top: nextTop, behavior: "smooth" });
     }
-  }, [currentWord, isMobile, layout.nodes, scale]);
+  }, [currentWord, isMobile, layout.nodes, scale, won]);
 
   return (
     <div
@@ -169,6 +170,13 @@ export function PathTree({
         .join(" ")}
       ref={pathTreeRef}
     >
+      {won && (
+        <TrunkGoalLink
+          containerRef={pathTreeRef}
+          goalBarRef={goalBarRef}
+          layoutHeight={layout.height}
+        />
+      )}
       <div className="path-tree__tree-area" ref={treeAreaRef}>
         <div
           className="path-tree__scale-wrap"

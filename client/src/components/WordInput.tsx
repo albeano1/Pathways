@@ -1,10 +1,18 @@
 import { FormEvent, useState } from "react";
 
+export type SubmitResult =
+  | boolean
+  | {
+      accepted: boolean;
+      shake?: boolean;
+    };
+
 interface WordInputProps {
   disabled?: boolean;
+  submitting?: boolean;
   onChange?: (value: string) => void;
   onTypingStart?: () => void;
-  onSubmit: (word: string) => boolean | Promise<boolean>;
+  onSubmit: (word: string) => SubmitResult | Promise<SubmitResult>;
 }
 
 function triggerShake(setShake: (value: boolean) => void): void {
@@ -12,18 +20,21 @@ function triggerShake(setShake: (value: boolean) => void): void {
   window.setTimeout(() => setShake(false), 400);
 }
 
-export function WordInput({ disabled, onChange, onTypingStart, onSubmit }: WordInputProps) {
+export function WordInput({ disabled, submitting, onChange, onTypingStart, onSubmit }: WordInputProps) {
   const [value, setValue] = useState("");
   const [shake, setShake] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!value.trim() || disabled) return;
-    const accepted = await onSubmit(value);
+    if (!value.trim() || disabled || submitting) return;
+    const result = await onSubmit(value);
+    const accepted = typeof result === "boolean" ? result : result.accepted;
+    const shake =
+      typeof result === "boolean" ? !result : (result.shake ?? !result.accepted);
     if (accepted) {
       setValue("");
       onChange?.("");
-    } else {
+    } else if (shake) {
       triggerShake(setShake);
     }
   };
@@ -39,7 +50,7 @@ export function WordInput({ disabled, onChange, onTypingStart, onSubmit }: WordI
         <input
           type="text"
           value={value}
-          disabled={disabled}
+          disabled={disabled || submitting}
           placeholder="Type a connecting word"
           autoComplete="off"
           spellCheck={false}
@@ -53,7 +64,7 @@ export function WordInput({ disabled, onChange, onTypingStart, onSubmit }: WordI
             onChange?.(next);
           }}
         />
-        <button type="submit" disabled={disabled || !value.trim()}>
+        <button type="submit" disabled={disabled || submitting || !value.trim()}>
           Add
         </button>
       </div>

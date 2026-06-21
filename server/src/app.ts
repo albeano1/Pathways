@@ -7,6 +7,7 @@ import type {
   HintResponse,
   ScoreRequest,
   ScoreResponse,
+  StepContextResponse,
   ValidateStepRequest,
   ValidateStepResponse,
   WordInfoResponse,
@@ -138,6 +139,32 @@ export function createApp(options: { serveClient?: boolean } = {}) {
         failureType: "not_in_graph",
         error: (error as Error).message,
       });
+    }
+  });
+
+  app.get("/api/step-context", (req, res) => {
+    try {
+      const end = String(req.query.end ?? "").trim().toLowerCase();
+      const pathParam = String(req.query.path ?? "").trim();
+      const path = pathParam
+        ? pathParam.split(",").map((word) => word.trim().toLowerCase()).filter(Boolean)
+        : [];
+
+      if (!end || path.length === 0) {
+        res.status(400).json({ error: "Missing end or path" });
+        return;
+      }
+
+      const { graph } = getServices();
+      const response: StepContextResponse = {
+        end,
+        path,
+        lookups: graph.buildStepLookups(end, path),
+      };
+      res.set("Cache-Control", "no-store");
+      res.json(response);
+    } catch (error) {
+      res.status(503).json({ error: (error as Error).message });
     }
   });
 

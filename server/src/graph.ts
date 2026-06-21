@@ -593,6 +593,49 @@ export class GraphService {
     };
   }
 
+  /** Precompute valid guesses for every surface form that connects from the explore path. */
+  buildStepLookups(end: string, path: string[] = []): Record<string, ValidateStepResponse> {
+    this.warmEndDistances(end);
+    const resolvedEnd = this.resolveLemma(end);
+    const resolvedPath = path
+      .map((word) => this.resolveLemma(word))
+      .filter(Boolean) as string[];
+    if (!resolvedEnd || resolvedPath.length === 0) return {};
+
+    const tip = path[path.length - 1] ?? path[0] ?? "";
+    const candidates = new Set<string>();
+
+    for (const word of resolvedPath) {
+      for (const { word: neighbor } of this.getNeighbors(word)) {
+        for (const variant of this.morphVariants(neighbor)) {
+          candidates.add(this.normalize(variant));
+        }
+      }
+    }
+
+    for (const variant of this.morphVariants(resolvedEnd)) {
+      candidates.add(this.normalize(variant));
+    }
+
+    const lookups: Record<string, ValidateStepResponse> = {};
+    for (const candidate of candidates) {
+      const response = this.analyzeStep(tip, candidate, end, path);
+      if (response.valid !== true) continue;
+
+      lookups[candidate] = response;
+      const resolvedTo = this.resolveLemma(candidate) ?? candidate;
+      for (const variant of this.morphVariants(resolvedTo)) {
+        const key = this.normalize(variant);
+        lookups[key] = {
+          ...response,
+          canonicalWord: resolvedTo !== key ? resolvedTo : response.canonicalWord,
+        };
+      }
+    }
+
+    return lookups;
+  }
+
   scorePath(
     start: string,
     end: string,

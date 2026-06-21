@@ -43,6 +43,13 @@ export interface ValidateStepResponse {
   error?: string;
 }
 
+/** Precomputed valid guesses for the current explore path. */
+export interface StepContextResponse {
+  end: string;
+  path: string[];
+  lookups: Record<string, ValidateStepResponse>;
+}
+
 export interface ConfirmedEdge {
   from: string;
   to: string;

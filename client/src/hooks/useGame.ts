@@ -7,6 +7,7 @@ import {
   fetchPuzzle,
   scorePath,
   validateStep,
+  isServerFailure,
   type ConfirmedBranch,
   type ConfirmedEdge,
   type Puzzle,
@@ -33,8 +34,16 @@ import {
 } from "../dailyStorage";
 import { writePuzzleCache } from "../puzzleCache";
 import { warmApi } from "../warmApi";
+import { hasStepContext, prefetchStepContext, resolveCachedStep } from "../stepContext";
 import { getPuzzleDateKey } from "../../../shared/dailyPuzzle";
 import { recordSolve, recordWinStreak, isDailyPuzzle } from "../solveStats";
+
+export type SubmitResult =
+  | boolean
+  | {
+      accepted: boolean;
+      shake?: boolean;
+    };
 
 export type { GameStatus };
 
@@ -111,6 +120,7 @@ export function useGame() {
   const pathReachedAt = useRef<number[]>([]);
   const hydrated = useRef(false);
   const submitLock = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const path = useMemo(
     () => (puzzle ? buildPathFromEdges(puzzle.start, confirmedEdges) : []),
@@ -343,6 +353,13 @@ export function useGame() {
   }, [puzzle?.end]);
 
   useEffect(() => {
+    if (!puzzle || status !== "playing") return;
+
+    const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
+    void prefetchStepContext(puzzle.end, explorePath);
+  }, [puzzle, confirmedEdges, confirmedBranches, status]);
+
+  useEffect(() => {
     if (!hydrated.current || !puzzle || getDebugPuzzleFromUrl()) return;
 
     const snapshot: PersistedGameState = {
@@ -459,8 +476,9 @@ export function useGame() {
   }, []);
 
   const submitWord = useCallback(
-    async (word: string): Promise<boolean> => {
-      if (!puzzle || status !== "playing" || submitLock.current) return false;
+    async (word: string): Promise<SubmitResult> => {
+      if (!puzzle || status !== "playing") return false;
+      if (submitLock.current) return { accepted: false, shake: false };
 
       const trimmed = word.trim().toLowerCase();
       if (!trimmed) return false;
@@ -470,13 +488,27 @@ export function useGame() {
       const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
       const activeWord = currentWord;
       const trunkLen = path.length;
-      const result = await validateStep(activeWord, trimmed, puzzle.end, explorePath);
 
-      if (result.valid !== true) {
+      let result = resolveCachedStep(puzzle.end, explorePath, trimmed);
+
+      if (!result && !hasStepContext(puzzle.end, explorePath)) {
+        setSubmitting(true);
+        await prefetchStepContext(puzzle.end, explorePath);
+        result = resolveCachedStep(puzzle.end, explorePath, trimmed);
+
+        if (!result && !hasStepContext(puzzle.end, explorePath)) {
+          result = await validateStep(activeWord, trimmed, puzzle.end, explorePath);
+        }
+      }
+
+      if (result?.valid !== true) {
+        if (result && isServerFailure(result)) {
+          return { accepted: false, shake: false };
+        }
         if (puzzleStartedAt.current === null) {
           startTimer();
         }
-        if (isOrphanWord(result)) {
+        if (!result || isOrphanWord(result)) {
           recordGuess(true);
           return false;
         }
@@ -604,9 +636,12 @@ export function useGame() {
         notePathArrival(nextPath);
       }
       return true;
-    } finally {
-      submitLock.current = false;
-    }
+      } catch {
+        return { accepted: false, shake: false };
+      } finally {
+        submitLock.current = false;
+        setSubmitting(false);
+      }
     },
     [confirmedBranches, confirmedEdges, currentWord, finalizeScore, notePathArrival, path, puzzle, recordGuess, startTimer, status, totalGuesses, wrongGuesses]
   );
@@ -632,5 +667,6 @@ export function useGame() {
     dismissStats,
     startTimer,
     submitWord,
+    submitting,
   };
 }

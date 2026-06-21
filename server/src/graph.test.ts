@@ -20,6 +20,15 @@ describe("GraphService distance cache", () => {
     expect(result.previousHopsToEnd).toBe(8);
     expect(result.proximity).toBe("closer");
   });
+
+  it("buildStepLookups matches analyzeStep for valid neighbors", () => {
+    graph.warmEndDistances("india");
+    const path = ["alpha"];
+    const lookups = graph.buildStepLookups("india", path);
+    const direct = graph.analyzeStep("alpha", "bravo", "india", path);
+    expect(direct.valid).toBe(true);
+    expect(lookups.bravo).toEqual(direct);
+  });
 });
 
 describe("GraphService plural variants", () => {

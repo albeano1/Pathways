@@ -3,9 +3,7 @@ import { useLayoutEffect, useState } from "react";
 interface TrunkGoalLinkProps {
   containerRef: React.RefObject<HTMLElement | null>;
   goalBarRef: React.RefObject<HTMLElement | null>;
-  canvasRef: React.RefObject<HTMLElement | null>;
-  active: boolean;
-  won: boolean;
+  layoutHeight: number;
 }
 
 interface LinkLine {
@@ -14,62 +12,70 @@ interface LinkLine {
   y2: number;
 }
 
-/** Connect the path tip (current or win-tip) to the goal bar through the goal gap. */
+function sameLine(a: LinkLine | null, b: LinkLine | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    Math.abs(a.x - b.x) < 0.5 &&
+    Math.abs(a.y1 - b.y1) < 0.5 &&
+    Math.abs(a.y2 - b.y2) < 0.5
+  );
+}
+
+/** Connect the win-tip node to the goal bar after the player types the goal word. */
 export function TrunkGoalLink({
   containerRef,
   goalBarRef,
-  canvasRef,
-  active,
-  won,
+  layoutHeight,
 }: TrunkGoalLinkProps) {
   const [line, setLine] = useState<LinkLine | null>(null);
 
   useLayoutEffect(() => {
-    if (!active) {
-      setLine(null);
-      return;
-    }
+    let frame = 0;
 
     const measure = () => {
       const container = containerRef.current;
       const goalBar = goalBarRef.current;
-      const tipSelector = won ? ".path-node--win-tip" : ".path-node--current";
-      const tipNode = container?.querySelector(tipSelector);
-      if (!container || !goalBar || !tipNode) {
-        setLine(null);
+      const tipNode = container?.querySelector(".path-node--win-tip");
+      const goalWord = goalBar?.querySelector(".goal-bar__word");
+      if (!container || !goalWord || !tipNode) {
+        setLine((prev) => (prev === null ? prev : null));
         return;
       }
 
       const containerRect = container.getBoundingClientRect();
       const tipRect = tipNode.getBoundingClientRect();
-      const goalRect = goalBar.getBoundingClientRect();
+      const goalRect = goalWord.getBoundingClientRect();
 
-      setLine({
+      const next: LinkLine = {
         x: tipRect.left + tipRect.width / 2 - containerRect.left,
         y1: tipRect.bottom - containerRect.top,
         y2: goalRect.top - containerRect.top,
-      });
+      };
+
+      setLine((prev) => (sameLine(prev, next) ? prev : next));
     };
 
-    measure();
-    requestAnimationFrame(measure);
+    const scheduleMeasure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
 
-    const observer = new ResizeObserver(measure);
+    scheduleMeasure();
+
+    const observer = new ResizeObserver(scheduleMeasure);
     if (containerRef.current) observer.observe(containerRef.current);
     if (goalBarRef.current) observer.observe(goalBarRef.current);
-    if (canvasRef.current) observer.observe(canvasRef.current);
 
-    const canvas = canvasRef.current;
-    canvas?.addEventListener("scroll", measure);
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", scheduleMeasure);
     return () => {
+      cancelAnimationFrame(frame);
       observer.disconnect();
-      canvas?.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", scheduleMeasure);
     };
-  }, [active, won, containerRef, goalBarRef, canvasRef]);
+  }, [containerRef, goalBarRef, layoutHeight]);
 
-  if (!active || !line || line.y2 <= line.y1) return null;
+  if (!line || line.y2 <= line.y1) return null;
 
   return (
     <svg
@@ -89,7 +95,7 @@ export function TrunkGoalLink({
         y1={line.y1}
         x2={line.x}
         y2={line.y2}
-        stroke="#64748b"
+        stroke="#16a34a"
         strokeWidth={4}
         strokeLinecap="round"
       />

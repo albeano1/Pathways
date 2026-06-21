@@ -1,10 +1,15 @@
 import type { Puzzle, ScoreResponse, ValidateStepResponse } from "../../../shared/types";
 import { getDebugPuzzleFromUrl } from "../debugPuzzle";
+import { warmApi } from "../warmApi";
 
 const API_BASE = "";
 
-const SERVER_ERROR =
+export const SERVER_ERROR =
   "Could not reach the server. Check your connection and try again.";
+
+export function isServerFailure(result: ValidateStepResponse): boolean {
+  return result.valid !== true && result.error === SERVER_ERROR;
+}
 
 async function readApiError(response: Response, fallback: string): Promise<string> {
   const text = await response.text();
@@ -48,7 +53,7 @@ export async function fetchPuzzle(options?: {
   return response.json() as Promise<Puzzle>;
 }
 
-export async function validateStep(
+async function validateStepOnce(
   from: string,
   to: string,
   end: string,
@@ -70,10 +75,14 @@ export async function validateStep(
   }
 
   if (!response.ok) {
+    const error =
+      response.status >= 500
+        ? SERVER_ERROR
+        : await readApiError(response, SERVER_ERROR);
     return {
       valid: false,
       failureType: "not_in_graph",
-      error: await readApiError(response, SERVER_ERROR),
+      error,
     };
   }
 
@@ -96,6 +105,20 @@ export async function validateStep(
       error: SERVER_ERROR,
     };
   }
+}
+
+export async function validateStep(
+  from: string,
+  to: string,
+  end: string,
+  path: string[]
+): Promise<ValidateStepResponse> {
+  let result = await validateStepOnce(from, to, end, path);
+  if (isServerFailure(result)) {
+    await warmApi(end);
+    result = await validateStepOnce(from, to, end, path);
+  }
+  return result;
 }
 
 export async function scorePath(

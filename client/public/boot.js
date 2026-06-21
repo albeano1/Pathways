@@ -41,6 +41,25 @@
     }
   }
 
+  function readEmbeddedStepContext(end, start) {
+    var el = document.getElementById("pathways-step-context-boot");
+    if (!el || !el.textContent) return null;
+    try {
+      var context = JSON.parse(el.textContent);
+      if (
+        context &&
+        context.end === end &&
+        context.lookups &&
+        context.path &&
+        context.path.length === 1 &&
+        context.path[0] === start
+      ) {
+        return context;
+      }
+    } catch (error) {}
+    return null;
+  }
+
   function fetchJson(url) {
     return fetch(url, { cache: "no-store" }).then(function (response) {
       if (!response.ok) throw new Error("Fetch failed");
@@ -53,12 +72,38 @@
     fetch("/api/health" + query, { cache: "no-store" }).catch(function () {});
   }
 
+  function warmStepContext(end, start) {
+    if (window.__pathwaysStepContextBoot) return;
+
+    var embedded = readEmbeddedStepContext(end, start);
+    if (embedded) {
+      window.__pathwaysStepContextBoot = Promise.resolve(embedded);
+      return;
+    }
+
+    window.__pathwaysStepContextBoot = fetch(
+      "/api/step-context?end=" +
+        encodeURIComponent(end) +
+        "&path=" +
+        encodeURIComponent(start),
+      { cache: "no-store" }
+    )
+      .then(function (response) {
+        if (!response.ok) throw new Error("Step context failed");
+        return response.json();
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
   var date = pacificDateKey();
   var embedded = readEmbeddedBoot(date);
   if (embedded) {
     storeBootPuzzle(date, embedded);
     window.__pathwaysPuzzlePrefetch = Promise.resolve(embedded);
     warmGraph(embedded.end);
+    warmStepContext(embedded.end, embedded.start);
   }
 
   window.__pathwaysPuzzleRefresh = fetchJson(
@@ -86,7 +131,10 @@
 
   window.__pathwaysPuzzlePrefetch
     .then(function (puzzle) {
-      if (puzzle && puzzle.end) warmGraph(puzzle.end);
+      if (puzzle && puzzle.end) {
+        warmGraph(puzzle.end);
+        warmStepContext(puzzle.end, puzzle.start);
+      }
     })
     .catch(function () {});
 })();

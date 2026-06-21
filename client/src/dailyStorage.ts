@@ -1,18 +1,10 @@
 import { clearGameState, purgeStaleGameState } from "./gamePersistence";
 import { clearPuzzleCache, purgeStalePuzzleCache } from "./puzzleCache";
 
-/** Long-lived stats — never cleared when the daily puzzle rotates. */
-export const PRESERVED_LOCAL_STORAGE_KEYS = [
-  "connections-solve-stats",
-  "pathways-win-streak",
-] as const;
-
-/** In-progress game state only — safe to clear on a new daily puzzle. */
-export const DAILY_SESSION_STORAGE_KEYS = [
-  "connections-game-v1",
-  "pathways.dailyPuzzle.v2",
-  "pathways.dailyPuzzle",
-] as const;
+export {
+  DAILY_SESSION_STORAGE_KEYS,
+  PRESERVED_LOCAL_STORAGE_KEYS,
+} from "../../shared/dailyStorageKeys";
 
 /** Drop stale puzzle cache and saved game for a prior calendar day. */
 export function purgeStaleDailySession(dateKey?: string): void {

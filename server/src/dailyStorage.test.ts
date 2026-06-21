@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DAILY_SESSION_STORAGE_KEYS,
   PRESERVED_LOCAL_STORAGE_KEYS,
-} from "../../client/src/dailyStorage.ts";
+} from "../../shared/dailyStorageKeys.js";
 
 describe("daily session storage", () => {
   it("does not include solve stats keys in daily session clears", () => {

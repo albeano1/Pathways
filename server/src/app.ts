@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import path from "node:path";
-import { getPuzzleDateKey } from "../../shared/dailyPuzzle.js";
+import { clampPuzzleDateKey, getPuzzleDateKey } from "../../shared/dailyPuzzle.js";
 import { isValidPuzzleHops, hopRangeLabel } from "../../shared/puzzleRules.js";
 import type {
   HintResponse,
@@ -96,8 +96,10 @@ export function createApp(options: { serveClient?: boolean } = {}) {
       }
 
       const dateParam = String(req.query.date ?? "").trim();
-      const puzzleDate =
-        /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : getPuzzleDateKey();
+      const requestedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
+        ? dateParam
+        : getPuzzleDateKey();
+      const puzzleDate = clampPuzzleDateKey(requestedDate);
       const puzzle = puzzles.getDaily(puzzleDate);
 
       res.set("Cache-Control", "no-store");

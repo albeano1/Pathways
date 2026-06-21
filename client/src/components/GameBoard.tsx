@@ -65,6 +65,17 @@ export function GameBoard() {
           </p>
         )}
 
+        {playing && (
+          <div className="game-board__stats" aria-live="polite">
+            <div
+              className="game-board__stat game-board__stat--hops"
+              aria-label={`${displayHopsToEnd ?? puzzle.optimalHops} hops to goal`}
+            >
+              {displayHopsToEnd ?? puzzle.optimalHops}
+            </div>
+          </div>
+        )}
+
         <div className="play-stage">
           <PathTree
             start={puzzle.start}

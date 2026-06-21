@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampPuzzleDateKey,
   getNextPuzzleAt,
   getPuzzleDateKey,
   hashString,
@@ -28,6 +29,13 @@ describe("dailyPuzzle", () => {
     const next = getNextPuzzleAt(now);
     expect(next.getTime()).toBeGreaterThan(now.getTime());
     expect(getPuzzleDateKey(next)).toBe(nextPuzzleDateKey(getPuzzleDateKey(now)));
+  });
+
+  it("clamps future date keys to today in Pacific time", () => {
+    const now = new Date("2026-06-20T06:59:00Z"); // still 2026-06-19 in Pacific
+    expect(getPuzzleDateKey(now)).toBe("2026-06-19");
+    expect(clampPuzzleDateKey("2026-06-20", now)).toBe("2026-06-19");
+    expect(clampPuzzleDateKey("2026-06-19", now)).toBe("2026-06-19");
   });
 
   it("seeded RNG is deterministic", () => {

@@ -1,5 +1,5 @@
 import type { Puzzle } from "../../shared/types";
-import { getPuzzleDateKey } from "../../shared/dailyPuzzle";
+import { clampPuzzleDateKey, getPuzzleDateKey } from "../../shared/dailyPuzzle";
 import { fetchPuzzle } from "./api/client";
 import {
   clearPuzzleCache,
@@ -24,14 +24,15 @@ function assertDailyPuzzle(puzzle: Puzzle, dateKey: string): Puzzle {
  * be a day ahead of the live daily before midnight Pacific.
  */
 export async function resolveDailyPuzzle(dateKey = getPuzzleDateKey()): Promise<Puzzle> {
-  purgeStalePuzzleCache(dateKey);
+  const todayKey = clampPuzzleDateKey(dateKey);
+  purgeStalePuzzleCache(todayKey);
 
   try {
-    const fromApi = assertDailyPuzzle(await fetchPuzzle({ date: dateKey }), dateKey);
+    const fromApi = assertDailyPuzzle(await fetchPuzzle({ date: todayKey }), todayKey);
     writePuzzleCache(fromApi);
     return fromApi;
   } catch (apiError) {
-    const cached = readPuzzleCache(dateKey);
+    const cached = readPuzzleCache(todayKey);
     if (cached) return cached;
 
     clearPuzzleCache();

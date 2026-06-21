@@ -34,8 +34,3 @@
   for = "/api/*"
   [headers.values]
     Cache-Control = "no-store"
-
-[[headers]]
-  for = "/daily-puzzle.json"
-  [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"

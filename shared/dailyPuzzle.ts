@@ -10,6 +10,12 @@ export function getPuzzleDateKey(date = new Date()): string {
   }).format(date);
 }
 
+/** Never serve a daily puzzle for a calendar day after today (Pacific). */
+export function clampPuzzleDateKey(requested: string, now = new Date()): string {
+  const today = getPuzzleDateKey(now);
+  return requested > today ? today : requested;
+}
+
 function anchorTimestampOnDateKey(dateKey: string): number {
   const [y, m, d] = dateKey.split("-").map(Number);
   const start = Date.UTC(y, m - 1, d - 1);

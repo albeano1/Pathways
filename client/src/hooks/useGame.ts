@@ -101,7 +101,6 @@ export function useGame() {
   const [loading, setLoading] = useState(
     () => getDebugPuzzleFromUrl() !== null || boot.puzzle === null
   );
-  const [submitting, setSubmitting] = useState(false);
   const [score, setScore] = useState<ScoreResponse | null>(null);
   const [totalGuesses, setTotalGuesses] = useState(0);
   const [wrongGuesses, setWrongGuesses] = useState(0);
@@ -111,6 +110,7 @@ export function useGame() {
   const puzzleStartedAt = useRef<number | null>(null);
   const pathReachedAt = useRef<number[]>([]);
   const hydrated = useRef(false);
+  const submitLock = useRef(false);
 
   const path = useMemo(
     () => (puzzle ? buildPathFromEdges(puzzle.start, confirmedEdges) : []),
@@ -332,8 +332,14 @@ export function useGame() {
   }, [applyFreshState, puzzle]);
 
   useEffect(() => {
-    if (!puzzle) return;
-    warmApi(puzzle.end);
+    if (!puzzle?.end || getDebugPuzzleFromUrl()) return;
+
+    void warmApi(puzzle.end);
+    const timer = window.setInterval(() => {
+      void warmApi(puzzle.end);
+    }, 25_000);
+
+    return () => window.clearInterval(timer);
   }, [puzzle?.end]);
 
   useEffect(() => {
@@ -454,12 +460,12 @@ export function useGame() {
 
   const submitWord = useCallback(
     async (word: string): Promise<boolean> => {
-      if (!puzzle || status !== "playing") return false;
+      if (!puzzle || status !== "playing" || submitLock.current) return false;
 
       const trimmed = word.trim().toLowerCase();
       if (!trimmed) return false;
 
-      setSubmitting(true);
+      submitLock.current = true;
       try {
       const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
       const activeWord = currentWord;
@@ -599,7 +605,7 @@ export function useGame() {
       }
       return true;
     } finally {
-      setSubmitting(false);
+      submitLock.current = false;
     }
     },
     [confirmedBranches, confirmedEdges, currentWord, finalizeScore, notePathArrival, path, puzzle, recordGuess, startTimer, status, totalGuesses, wrongGuesses]
@@ -620,7 +626,6 @@ export function useGame() {
     status,
     error,
     loading,
-    submitting,
     score,
     hopDurationsMs,
     statsVisible,

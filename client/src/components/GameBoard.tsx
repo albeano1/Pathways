@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getDebugPuzzleFromUrl } from "../debugPuzzle";
 import { clearDailySession } from "../dailyStorage";
+import { getWinStreak } from "../solveStats";
 import { useGame } from "../hooks/useGame";
 import { PathTree } from "./PathTree";
 import { WinPopup } from "./WinPopup";
@@ -21,7 +22,6 @@ export function GameBoard() {
     currentHopsToEnd,
     status,
     error,
-    submitting,
     score,
     hopDurationsMs,
     statsVisible,
@@ -49,7 +49,7 @@ export function GameBoard() {
         <section className="panel panel--play">
           <div className="play-stage play-stage--boot" />
           <div className="play-dock">
-            <WordInput disabled busy={false} onTypingStart={() => {}} onSubmit={async () => false} />
+            <WordInput disabled onTypingStart={() => {}} onSubmit={async () => false} />
           </div>
         </section>
       </div>
@@ -57,6 +57,7 @@ export function GameBoard() {
   }
 
   const playing = status === "playing";
+  const winStreak = getWinStreak();
   const displayHopsToEnd =
     currentHopsToEnd ?? (confirmedEdges.length === 0 ? puzzle.optimalHops : undefined);
   const closeCount =
@@ -76,13 +77,9 @@ export function GameBoard() {
           </p>
         )}
 
-        {playing && (
-          <p
-            className="game-board__hops-count"
-            aria-live="polite"
-            aria-label={`${displayHopsToEnd ?? puzzle.optimalHops} hops to goal`}
-          >
-            {displayHopsToEnd ?? puzzle.optimalHops}
+        {playing && winStreak > 0 && (
+          <p className="game-board__streak-count" aria-label={`${winStreak} day win streak`}>
+            {winStreak}
           </p>
         )}
 
@@ -107,7 +104,6 @@ export function GameBoard() {
         <div className="play-dock">
           <WordInput
             disabled={!playing}
-            busy={submitting}
             onTypingStart={startTimer}
             onSubmit={submitWord}
           />

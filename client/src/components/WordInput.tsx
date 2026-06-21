@@ -2,7 +2,6 @@ import { FormEvent, useState } from "react";
 
 interface WordInputProps {
   disabled?: boolean;
-  busy?: boolean;
   onChange?: (value: string) => void;
   onTypingStart?: () => void;
   onSubmit: (word: string) => boolean | Promise<boolean>;
@@ -13,13 +12,13 @@ function triggerShake(setShake: (value: boolean) => void): void {
   window.setTimeout(() => setShake(false), 400);
 }
 
-export function WordInput({ disabled, busy, onChange, onTypingStart, onSubmit }: WordInputProps) {
+export function WordInput({ disabled, onChange, onTypingStart, onSubmit }: WordInputProps) {
   const [value, setValue] = useState("");
   const [shake, setShake] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!value.trim() || disabled || busy) return;
+    if (!value.trim() || disabled) return;
     const accepted = await onSubmit(value);
     if (accepted) {
       setValue("");
@@ -40,8 +39,8 @@ export function WordInput({ disabled, busy, onChange, onTypingStart, onSubmit }:
         <input
           type="text"
           value={value}
-          disabled={disabled || busy}
-          placeholder={busy ? "Checking..." : "Type a connecting word"}
+          disabled={disabled}
+          placeholder="Type a connecting word"
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="go"
@@ -54,8 +53,8 @@ export function WordInput({ disabled, busy, onChange, onTypingStart, onSubmit }:
             onChange?.(next);
           }}
         />
-        <button type="submit" disabled={disabled || busy || !value.trim()}>
-          {busy ? "..." : "Add"}
+        <button type="submit" disabled={disabled || !value.trim()}>
+          Add
         </button>
       </div>
     </form>

@@ -62,13 +62,13 @@ button {
   font-size: 1.1rem;
 }
 
-.game-board__hops-count {
+.game-board__streak-count {
   position: absolute;
   top: 14px;
   right: 18px;
   z-index: 3;
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: #94a3b8;

@@ -83,6 +83,8 @@ export function createApp(options: { serveClient?: boolean } = {}) {
           return;
         }
 
+        graph.warmEndDistances(puzzle.end);
+
         res.json({
           id: `debug-${start}-${end}`,
           start: puzzle.start,
@@ -101,6 +103,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
         : getPuzzleDateKey();
       const puzzleDate = clampPuzzleDateKey(requestedDate);
       const puzzle = puzzles.getDaily(puzzleDate);
+      graph.warmEndDistances(puzzle.end);
 
       res.set("Cache-Control", "no-store");
       res.json({
@@ -126,6 +129,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
       }
 
       const { graph } = getServices();
+      graph.warmEndDistances(end);
       const response: ValidateStepResponse = graph.analyzeStep(from, to, end, explorePath ?? []);
       res.json(response);
     } catch (error) {

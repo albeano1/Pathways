@@ -48,11 +48,17 @@
     });
   }
 
+  function warmGraph(end) {
+    var query = end ? "?end=" + encodeURIComponent(end) : "";
+    fetch("/api/health" + query, { cache: "no-store" }).catch(function () {});
+  }
+
   var date = pacificDateKey();
   var embedded = readEmbeddedBoot(date);
   if (embedded) {
     storeBootPuzzle(date, embedded);
     window.__pathwaysPuzzlePrefetch = Promise.resolve(embedded);
+    warmGraph(embedded.end);
   }
 
   window.__pathwaysPuzzleRefresh = fetchJson(
@@ -78,5 +84,9 @@
       });
   }
 
-  fetch("/api/health", { cache: "no-store" }).catch(function () {});
+  window.__pathwaysPuzzlePrefetch
+    .then(function (puzzle) {
+      if (puzzle && puzzle.end) warmGraph(puzzle.end);
+    })
+    .catch(function () {});
 })();

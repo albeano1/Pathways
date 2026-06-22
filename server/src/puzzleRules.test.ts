@@ -3,6 +3,7 @@ import {
   BLOCKED_PUZZLE_LEMMAS,
   canonicalPairKey,
   difficultyFromHops,
+  isAbbreviationLemma,
   isAcceptablePuzzlePath,
   isEligiblePuzzleLemma,
   isMorphologyOnlyStep,
@@ -32,6 +33,7 @@ describe("puzzleRules", () => {
     expect(isEligiblePuzzleLemma("apple", 10)).toBe(true);
     expect(isEligiblePuzzleLemma("apple", MIN_WORD_DEGREE - 1)).toBe(false);
     expect(isEligiblePuzzleLemma("go", 10)).toBe(false);
+    expect(isEligiblePuzzleLemma("cat", 10)).toBe(false);
     expect(isEligiblePuzzleLemma("apple", MAX_WORD_DEGREE + 1)).toBe(false);
   });
 
@@ -77,6 +79,17 @@ describe("puzzleRules", () => {
   it("blocks number lemmas as endpoints", () => {
     expect(isNumberPuzzleLemma("fourteen")).toBe(true);
     expect(isEligiblePuzzleLemma("fourteen", 20)).toBe(false);
+  });
+
+  it("blocks abbreviations as endpoints and path steps", () => {
+    expect(isAbbreviationLemma("hev")).toBe(true);
+    expect(isAbbreviationLemma("hgv")).toBe(true);
+    expect(isAbbreviationLemma("star")).toBe(false);
+    expect(isEligiblePuzzleLemma("hev", 20)).toBe(false);
+    expect(isEligiblePuzzleLemma("star", 20)).toBe(true);
+    expect(
+      isAcceptablePuzzlePath(["regulation", "control", "mechanism", "vehicle", "hgv", "motor"])
+    ).toBe(false);
   });
 
   it("rejects morphology-only and counting paths", () => {

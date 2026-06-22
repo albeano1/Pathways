@@ -108,6 +108,87 @@ export const NUMBER_PUZZLE_LEMMAS = new Set([
   "counting",
 ]);
 
+/** Playable puzzle endpoints must be at least this long (filters most acronyms). */
+export const MIN_PUZZLE_ENDPOINT_LENGTH = 4;
+
+/** Known abbreviations and opaque tokens — not fun as puzzle steps or goals. */
+export const ABBREVIATION_PUZZLE_LEMMAS = new Set([
+  "hev",
+  "hgv",
+  "ev",
+  "phev",
+  "phevler",
+  "bevx",
+  "suv",
+  "mpg",
+  "gps",
+  "pdf",
+  "lcd",
+  "dvd",
+  "usb",
+  "css",
+  "html",
+  "http",
+  "https",
+  "cpu",
+  "gpu",
+  "ram",
+  "rom",
+  "bios",
+  "wifi",
+  "lte",
+  "gsm",
+  "sdk",
+  "api",
+  "ide",
+  "ldap",
+  "dhcp",
+  "tcp",
+  "udp",
+  "dns",
+  "url",
+  "uri",
+  "npm",
+  "cgi",
+  "xml",
+  "json",
+  "yaml",
+  "cdp",
+  "cfc",
+  "cgs",
+  "cis",
+  "crt",
+  "bdsm",
+  "lgbt",
+  "tnt",
+  "lol",
+  "kb",
+  "mb",
+  "mm",
+  "pc",
+  "ph",
+  "sr",
+  "ss",
+  "st",
+  "lp",
+  "cd",
+  "tv",
+  "vtvl",
+  "vthl",
+  "hbd",
+]);
+
+export function isAbbreviationLemma(lemma: string): boolean {
+  if (!/^[a-z]+$/.test(lemma)) return true;
+  if (lemma.length <= 2) return true;
+  if (ABBREVIATION_PUZZLE_LEMMAS.has(lemma)) return true;
+
+  const vowelCount = (lemma.match(/[aeiou]/g) ?? []).length;
+  if (vowelCount === 0) return true;
+
+  return false;
+}
+
 export function isNumberPuzzleLemma(lemma: string): boolean {
   return NUMBER_PUZZLE_LEMMAS.has(lemma);
 }
@@ -131,9 +212,14 @@ export function isAcceptablePuzzlePath(path: string[]): boolean {
     return false;
   }
 
+  if (isAbbreviationLemma(path[0]!) || isAbbreviationLemma(path[path.length - 1]!)) {
+    return false;
+  }
+
   let numberWordCount = 0;
   for (const lemma of path) {
     if (isNumberPuzzleLemma(lemma)) numberWordCount++;
+    if (isAbbreviationLemma(lemma)) return false;
   }
   if (numberWordCount >= 2) return false;
 
@@ -163,10 +249,11 @@ export function matchesDifficulty(hops: number, difficulty?: Difficulty): boolea
 
 export function isEligiblePuzzleLemma(lemma: string, degree: number): boolean {
   if (degree < MIN_WORD_DEGREE || degree > MAX_WORD_DEGREE) return false;
-  if (lemma.length < MIN_LEMMA_LENGTH || lemma.length > MAX_LEMMA_LENGTH) return false;
+  if (lemma.length < MIN_PUZZLE_ENDPOINT_LENGTH || lemma.length > MAX_LEMMA_LENGTH) return false;
   if (!/^[a-z]+$/.test(lemma)) return false;
   if (BLOCKED_PUZZLE_LEMMAS.has(lemma)) return false;
   if (isNumberPuzzleLemma(lemma)) return false;
+  if (isAbbreviationLemma(lemma)) return false;
   return true;
 }
 

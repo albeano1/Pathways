@@ -54,7 +54,6 @@ export function GraphView({
   const compactLayout = isCompactLayout(panelWidth, panelBudget);
   const fixedScaleMode = useFixedGraphScale(panelWidth, panelBudget, isMobile);
   const scrollableGraph = useScrollableGraph(panelWidth, panelBudget, isMobile);
-  const leftAlignedGraph = scrollableGraph;
 
   const pinned = useMemo(() => {
     const map = new Map<string, PinnedPosition>();
@@ -159,24 +158,18 @@ export function GraphView({
           }}
         >
           <div
-            className={[
-              "path-tree__scale-inner",
-              leftAlignedGraph ? "path-tree__scale-inner--align-left" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
+            className="path-tree__scale-inner"
             style={{
               width: canvasSize.width,
               height: canvasSize.height,
-              transform: leftAlignedGraph
-                ? `scale(${scale})`
-                : `translateX(-50%) scale(${scale})`,
+              transform: `translateX(-50%) scale(${scale})`,
             }}
           >
             <GraphCanvas
               layout={layout}
               panelWidth={panelWidth}
               panelHeight={panelBudget}
+              centerGraphHorizontally={scrollableGraph}
               onWordSelect={onWordSelect}
             />
           </div>

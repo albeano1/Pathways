@@ -548,15 +548,16 @@ export function graphCanvasSize(
 export function graphCanvasOffset(
   layout: GraphLayout,
   panelWidth = Number.POSITIVE_INFINITY,
-  panelHeight = 0
+  panelHeight = 0,
+  centerGraphHorizontally = false
 ): { x: number; y: number } {
   const compact = isCompactLayout(panelWidth, panelHeight);
   const extents = measureGraphExtents(layout.nodes, compact);
   const contentTop = layoutGraphTop(layout.nodes);
   const start = layout.nodes.find((node) => node.variant === "start");
   const canvasWidth = Math.max(extents.width, layout.width);
-  const x =
-    compact || !start ? -extents.minX : canvasWidth / 2 - start.x;
+  const useStartCenter = Boolean(start) && (centerGraphHorizontally || !compact);
+  const x = useStartCenter ? canvasWidth / 2 - start!.x : -extents.minX;
   return {
     x,
     y: EDGE_BLEED_TOP + CANVAS_PAD_TOP - contentTop,

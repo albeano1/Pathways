@@ -16,6 +16,7 @@ interface GraphCanvasProps {
   layout: GraphLayout;
   panelWidth?: number;
   panelHeight?: number;
+  centerGraphHorizontally?: boolean;
   onWordSelect?: (word: string) => void;
 }
 
@@ -28,9 +29,10 @@ export const GraphCanvas = memo(function GraphCanvas({
   layout,
   panelWidth,
   panelHeight = 0,
+  centerGraphHorizontally = false,
   onWordSelect,
 }: GraphCanvasProps) {
-  const offset = graphCanvasOffset(layout, panelWidth, panelHeight);
+  const offset = graphCanvasOffset(layout, panelWidth, panelHeight, centerGraphHorizontally);
   const { width, height } = graphCanvasSize(layout, panelWidth, panelHeight);
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.id, node])),

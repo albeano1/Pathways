@@ -187,15 +187,18 @@ button {
 }
 
 .graph-view--scrollable .path-tree__tree-area {
+  display: block;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  align-items: flex-start;
+  text-align: center;
 }
 
 .graph-view--scrollable .path-tree__scale-wrap {
+  display: inline-block;
+  vertical-align: top;
+  text-align: left;
   margin: 0;
-  flex-shrink: 0;
 }
 
 .graph-view--horizontal .path-tree__tree-area {

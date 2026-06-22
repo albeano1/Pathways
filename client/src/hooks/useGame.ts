@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  branchTip,
-  buildExplorePath,
-  buildPathFromEdges,
-  buildWinPathFromBranch,
-  extendBranchContinuation,
-  findBranchContainingWord,
+  buildExploreFromGraph,
+  closestHopsInGraph,
+  createStartNode,
   fetchPuzzle,
+  hasGraphEdge,
+  nextEdgeId,
+  nextNodeId,
+  nodeByWord,
+  resolveParentNodeId,
   scorePath,
+  shortestWinPath,
+  syncGraphCounters,
   validateStep,
   isServerFailure,
-  type ConfirmedBranch,
-  type ConfirmedEdge,
+  type GraphEdge,
+  type GraphNode,
   type Puzzle,
   type RejectedBranch,
   type ScoreResponse,
@@ -30,10 +34,7 @@ import { getBootSnapshot } from "../bootstrapGame";
 import { prefetchDailyPuzzle } from "../prefetchPuzzle";
 import { getPuzzleRefresh } from "../earlyPuzzleBoot";
 import { resolveDailyPuzzle } from "../loadPuzzle";
-import {
-  clearDailySession,
-  purgeStaleDailySession,
-} from "../dailyStorage";
+import { clearDailySession, purgeStaleDailySession } from "../dailyStorage";
 import { writePuzzleCache } from "../puzzleCache";
 import { warmApi } from "../warmApi";
 import { hasStepContext, getCachedLookupWords, prefetchStepContext, resolveCachedStep } from "../stepContext";
@@ -50,20 +51,20 @@ export type SubmitResult =
 
 export type { GameStatus };
 
-let branchCounter = 0;
+let rejectCounter = 0;
 
-function syncBranchCounter(branches: ConfirmedBranch[], rejected: RejectedBranch[]): void {
-  let max = 0;
-  for (const item of [...branches, ...rejected]) {
-    const match = item.id.match(/^branch-(\d+)$/);
-    if (match) max = Math.max(max, Number(match[1]));
-  }
-  branchCounter = max;
+function nextRejectId(): string {
+  rejectCounter += 1;
+  return `reject-${rejectCounter}`;
 }
 
-function nextBranchId(): string {
-  branchCounter += 1;
-  return `branch-${branchCounter}`;
+function syncRejectCounter(rejected: RejectedBranch[]): void {
+  let max = 0;
+  for (const item of rejected) {
+    const match = item.id.match(/^reject-(\d+)$/);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  rejectCounter = max;
 }
 
 /** Word is not on the graph or has no edge to any node on the current path. */
@@ -76,12 +77,22 @@ function isOrphanWord(result: ValidateStepResponse): boolean {
   return false;
 }
 
-function createFreshState() {
+function createFreshGraph(start: string, optimalHops: number): {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  currentNodeId: string;
+} {
+  const startNode = createStartNode(start, optimalHops);
+  return { nodes: [startNode], edges: [], currentNodeId: startNode.id };
+}
+
+function createFreshState(start: string, optimalHops: number) {
+  const graph = createFreshGraph(start, optimalHops);
   return {
-    confirmedEdges: [] as ConfirmedEdge[],
-    confirmedBranches: [] as ConfirmedBranch[],
+    graphNodes: graph.nodes,
+    graphEdges: graph.edges,
+    currentNodeId: graph.currentNodeId,
     rejectedBranches: [] as RejectedBranch[],
-    activeBranchId: undefined as string | undefined,
     status: "playing" as GameStatus,
     score: null as ScoreResponse | null,
     totalGuesses: 0,
@@ -97,10 +108,14 @@ function createFreshState() {
 export function useGame() {
   const boot = getBootSnapshot();
   const [puzzle, setPuzzle] = useState<Puzzle | null>(() => boot.puzzle);
-  const [confirmedEdges, setConfirmedEdges] = useState<ConfirmedEdge[]>([]);
-  const [confirmedBranches, setConfirmedBranches] = useState<ConfirmedBranch[]>([]);
+  const [graphNodes, setGraphNodes] = useState<GraphNode[]>(() =>
+    boot.puzzle ? createFreshGraph(boot.puzzle.start, boot.puzzle.optimalHops).nodes : []
+  );
+  const [graphEdges, setGraphEdges] = useState<GraphEdge[]>([]);
+  const [currentNodeId, setCurrentNodeId] = useState<string>(() =>
+    boot.puzzle ? createFreshGraph(boot.puzzle.start, boot.puzzle.optimalHops).currentNodeId : ""
+  );
   const [rejectedBranches, setRejectedBranches] = useState<RejectedBranch[]>([]);
-  const [activeBranchId, setActiveBranchId] = useState<string | undefined>();
   const [status, setStatus] = useState<GameStatus>("playing");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(
@@ -118,39 +133,22 @@ export function useGame() {
   const submitLock = useRef(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const path = useMemo(
-    () => (puzzle ? buildPathFromEdges(puzzle.start, confirmedEdges) : []),
-    [confirmedEdges, puzzle]
+  const currentNode = useMemo(
+    () => graphNodes.find((node) => node.id === currentNodeId),
+    [graphNodes, currentNodeId]
   );
 
-  const hopsToEnd = confirmedEdges[confirmedEdges.length - 1]?.hopsToEnd;
+  const currentWord = currentNode?.word ?? puzzle?.start ?? "";
+  const currentHopsToEnd = currentNode?.hopsToEnd;
+  const closestHopsToEnd = useMemo(() => closestHopsInGraph(graphNodes), [graphNodes]);
 
-  const currentWord = useMemo(() => {
-    if (activeBranchId) {
-      const branch = confirmedBranches.find((item) => item.id === activeBranchId);
-      if (branch) return branchTip(branch);
-    }
-    return path[path.length - 1] ?? puzzle?.start ?? "";
-  }, [activeBranchId, confirmedBranches, path, puzzle?.start]);
-
-  const currentHopsToEnd = useMemo(() => {
-    if (activeBranchId) {
-      const branch = confirmedBranches.find((item) => item.id === activeBranchId);
-      if (branch) {
-        const last = branch.continuation[branch.continuation.length - 1];
-        return last?.hopsToEnd ?? branch.hopsToEnd;
-      }
-    }
-    return confirmedEdges[confirmedEdges.length - 1]?.hopsToEnd;
-  }, [activeBranchId, confirmedBranches, confirmedEdges]);
-
-  const applyFreshState = useCallback(() => {
-    const fresh = createFreshState();
-    branchCounter = 0;
-    setConfirmedEdges(fresh.confirmedEdges);
-    setConfirmedBranches(fresh.confirmedBranches);
+  const applyFreshState = useCallback((start: string, optimalHops: number) => {
+    const fresh = createFreshState(start, optimalHops);
+    syncGraphCounters(fresh.graphNodes, fresh.graphEdges);
+    setGraphNodes(fresh.graphNodes);
+    setGraphEdges(fresh.graphEdges);
+    setCurrentNodeId(fresh.currentNodeId);
     setRejectedBranches(fresh.rejectedBranches);
-    setActiveBranchId(fresh.activeBranchId);
     setStatus(fresh.status);
     setScore(fresh.score);
     setTotalGuesses(fresh.totalGuesses);
@@ -163,12 +161,12 @@ export function useGame() {
   }, []);
 
   const restoreSavedState = useCallback((saved: PersistedGameState) => {
-    branchCounter = saved.branchCounter;
-    syncBranchCounter(saved.confirmedBranches, saved.rejectedBranches);
-    setConfirmedEdges(saved.confirmedEdges);
-    setConfirmedBranches(saved.confirmedBranches);
+    syncGraphCounters(saved.graphNodes, saved.graphEdges);
+    syncRejectCounter(saved.rejectedBranches);
+    setGraphNodes(saved.graphNodes);
+    setGraphEdges(saved.graphEdges);
+    setCurrentNodeId(saved.currentNodeId);
     setRejectedBranches(saved.rejectedBranches);
-    setActiveBranchId(saved.activeBranchId);
     setStatus(saved.status);
     setScore(saved.score);
     setTotalGuesses(saved.totalGuesses);
@@ -192,7 +190,7 @@ export function useGame() {
         restoreSavedState(saved);
       } else {
         clearDailySession();
-        applyFreshState();
+        applyFreshState(fetched.start, fetched.optimalHops);
       }
 
       setPuzzle(fetched);
@@ -225,7 +223,7 @@ export function useGame() {
         if (cancelled) return;
 
         if (debug) {
-          applyFreshState();
+          applyFreshState(fetched.start, fetched.optimalHops);
           setPuzzle(fetched);
           hydrated.current = true;
           return;
@@ -271,7 +269,9 @@ export function useGame() {
             return;
           }
           clearDailySession();
-          applyFreshState();
+          if (boot.puzzle) {
+            applyFreshState(boot.puzzle.start, boot.puzzle.optimalHops);
+          }
           setPuzzle(null);
           setError((err as Error).message);
         }
@@ -309,7 +309,7 @@ export function useGame() {
 
         purgeStaleDailySession(todayKey);
         clearDailySession();
-        applyFreshState();
+        applyFreshState(fetched.start, fetched.optimalHops);
         setPuzzle(fetched);
         writePuzzleCache(fetched);
         hydrated.current = true;
@@ -356,20 +356,23 @@ export function useGame() {
   useEffect(() => {
     if (!puzzle || status !== "playing") return;
 
-    const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
+    const { path: explorePath } = buildExploreFromGraph(graphNodes);
+    const graphWords = graphNodes.map((node) => node.word);
     prefetchWordInfo([
       ...explorePath,
+      ...graphWords,
       puzzle.end,
       ...getCachedLookupWords(puzzle.end, explorePath, currentWord),
     ]);
     void prefetchStepContext(puzzle.end, explorePath, currentWord).then(() => {
       prefetchWordInfo([
         ...explorePath,
+        ...graphWords,
         puzzle.end,
         ...getCachedLookupWords(puzzle.end, explorePath, currentWord),
       ]);
     });
-  }, [puzzle, confirmedEdges, confirmedBranches, status, currentWord]);
+  }, [puzzle, graphNodes, status, currentWord]);
 
   useEffect(() => {
     if (!hydrated.current || !puzzle || getDebugPuzzleFromUrl()) return;
@@ -377,10 +380,10 @@ export function useGame() {
     const snapshot: PersistedGameState = {
       puzzleDate: puzzle.puzzleDate,
       puzzle,
-      confirmedEdges,
-      confirmedBranches,
+      graphNodes,
+      graphEdges,
+      currentNodeId,
       rejectedBranches,
-      activeBranchId,
       status,
       totalGuesses,
       wrongGuesses,
@@ -388,7 +391,6 @@ export function useGame() {
       pathReachedAt: pathReachedAt.current,
       hopDurationsMs,
       score,
-      branchCounter,
       statsVisible,
       solveRecorded,
     };
@@ -397,10 +399,10 @@ export function useGame() {
     return () => window.clearTimeout(timer);
   }, [
     puzzle,
-    confirmedEdges,
-    confirmedBranches,
+    graphNodes,
+    graphEdges,
+    currentNodeId,
     rejectedBranches,
-    activeBranchId,
     status,
     totalGuesses,
     wrongGuesses,
@@ -436,10 +438,7 @@ export function useGame() {
   }, []);
 
   const finalizeScore = useCallback(
-    (
-      winPath: string[],
-      guessStats: { totalGuesses: number; wrongGuesses: number }
-    ) => {
+    (winPath: string[], guessStats: { totalGuesses: number; wrongGuesses: number }) => {
       if (!puzzle) return;
       if (puzzleStartedAt.current === null) {
         startTimer();
@@ -503,154 +502,123 @@ export function useGame() {
 
       submitLock.current = true;
       try {
-      const explorePath = buildExplorePath(puzzle.start, confirmedEdges, confirmedBranches);
-      const activeWord = currentWord;
-      const trunkLen = path.length;
+        const { path: explorePath, keys: exploreKeys } = buildExploreFromGraph(graphNodes);
+        const activeWord = currentWord;
 
-      let result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
-
-      if (!result && !hasStepContext(puzzle.end, explorePath, activeWord)) {
-        setSubmitting(true);
-        await prefetchStepContext(puzzle.end, explorePath, activeWord);
-        result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
+        let result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
 
         if (!result && !hasStepContext(puzzle.end, explorePath, activeWord)) {
-          result = await validateStep(activeWord, trimmed, puzzle.end, explorePath);
-        }
-      }
+          setSubmitting(true);
+          await prefetchStepContext(puzzle.end, explorePath, activeWord);
+          result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
 
-      if (result?.valid !== true) {
-        if (result && isServerFailure(result)) {
-          return { accepted: false, shake: false };
+          if (!result && !hasStepContext(puzzle.end, explorePath, activeWord)) {
+            result = await validateStep(activeWord, trimmed, puzzle.end, explorePath);
+          }
         }
-        if (puzzleStartedAt.current === null) {
-          startTimer();
+
+        if (result?.valid !== true) {
+          if (result && isServerFailure(result)) {
+            return { accepted: false, shake: false };
+          }
+          if (puzzleStartedAt.current === null) {
+            startTimer();
+          }
+          if (!result || isOrphanWord(result)) {
+            recordGuess(true);
+            return false;
+          }
+
+          recordGuess(true);
+          setRejectedBranches((current) => [
+            ...current,
+            {
+              id: nextRejectId(),
+              from: activeWord,
+              attempted: trimmed,
+              failureType: result.failureType ?? "no_edge",
+              connectsTo: result.connectsTo,
+            },
+          ]);
+          return false;
         }
-        if (!result || isOrphanWord(result)) {
+
+        const connections = result.connections ?? [];
+        if (connections.length === 0 && result.connectFromIndex !== undefined) {
+          connections.push({
+            connectFromIndex: result.connectFromIndex,
+            connectedFrom: result.connectedFrom ?? activeWord,
+            relation: result.relation ?? "RelatedTo",
+            hopsToEnd: result.hopsToEnd ?? 0,
+            previousHopsToEnd: result.previousHopsToEnd ?? 0,
+            proximity: result.proximity ?? "same",
+          });
+        }
+
+        if (connections.length === 0) {
           recordGuess(true);
           return false;
         }
 
-        recordGuess(true);
-        setRejectedBranches((current) => [
-          ...current,
-          {
-            id: nextBranchId(),
-            from: activeWord,
-            attempted: trimmed,
-            failureType: result.failureType ?? "no_edge",
-            connectsTo: result.connectsTo,
-          },
-        ]);
-        return false;
-      }
+        const canonical = result.canonicalWord ?? trimmed;
+        const childHops = result.hopsToEnd ?? connections[0]!.hopsToEnd;
+        let targetNode = nodeByWord(graphNodes, canonical);
+        const targetId = targetNode?.id ?? nextNodeId();
+        const newEdges: GraphEdge[] = [];
 
-      recordGuess(false);
-      const guessStats = {
-        totalGuesses: totalGuesses + 1,
-        wrongGuesses,
-      };
+        for (const connection of connections) {
+          const parentId = resolveParentNodeId(connection, exploreKeys);
+          if (!parentId) continue;
+          if (hasGraphEdge(graphEdges, parentId, targetId)) continue;
 
-      const canonical = result.canonicalWord ?? trimmed;
-      const fromIndex = result.connectFromIndex ?? trunkLen - 1;
-      const fromWord = result.connectedFrom ?? activeWord;
-      const nextEdge: ConfirmedEdge = {
-        from: fromWord,
-        to: canonical,
-        relation: result.relation ?? "RelatedTo",
-        proximity: result.proximity,
-        hopsToEnd: result.hopsToEnd ?? 0,
-      };
+          newEdges.push({
+            id: nextEdgeId(),
+            fromNodeId: parentId,
+            toNodeId: targetId,
+            relation: connection.relation,
+            proximity: connection.proximity,
+            hopsToEnd: connection.hopsToEnd,
+          });
+        }
 
-      setError(null);
-
-      if (fromIndex < trunkLen - 1) {
-        const duplicate = confirmedBranches.some(
-          (branch) =>
-            branch.from === fromWord &&
-            (branch.to === canonical || branchTip(branch) === canonical)
-        );
-        if (duplicate) {
+        if (newEdges.length === 0) {
+          recordGuess(true);
           return false;
         }
 
-        const branchId = nextBranchId();
-        setConfirmedBranches((current) => [
-          ...current,
-          {
-            id: branchId,
-            from: fromWord,
-            fromTrunkIndex: fromIndex,
-            to: canonical,
-            relation: nextEdge.relation,
-            hopsToEnd: nextEdge.hopsToEnd,
-            proximity: nextEdge.proximity,
-            continuation: [],
-          },
-        ]);
-        setActiveBranchId(branchId);
+        recordGuess(false);
+        const guessStats = {
+          totalGuesses: totalGuesses + 1,
+          wrongGuesses,
+        };
 
-        const branchPath = [...path.slice(0, fromIndex + 1), canonical];
+        let nextNodes = graphNodes;
+        if (!targetNode) {
+          const createdAt = Math.max(0, ...graphNodes.map((node) => node.createdAt)) + 1;
+          targetNode = {
+            id: targetId,
+            word: canonical,
+            hopsToEnd: childHops,
+            createdAt,
+          };
+          nextNodes = [...graphNodes, targetNode];
+        }
 
-        if (canonical === puzzle.end) {
+        const nextEdges = [...graphEdges, ...newEdges];
+        setGraphNodes(nextNodes);
+        setGraphEdges(nextEdges);
+        setCurrentNodeId(targetNode.id);
+        setError(null);
+
+        const winPath = shortestWinPath(nextNodes, nextEdges, puzzle.start, puzzle.end);
+        if (canonical === puzzle.end && winPath) {
           setStatus("won");
-          const winPath = buildWinPathFromBranch(puzzle.start, confirmedEdges, {
-            id: branchId,
-            from: fromWord,
-            fromTrunkIndex: fromIndex,
-            to: canonical,
-            relation: nextEdge.relation,
-            hopsToEnd: nextEdge.hopsToEnd,
-            proximity: nextEdge.proximity,
-            continuation: [],
-          });
           finalizeScore(winPath, guessStats);
-        } else {
-          notePathArrival(branchPath);
+        } else if (winPath) {
+          notePathArrival(winPath);
         }
+
         return true;
-      }
-
-      if (fromIndex > trunkLen - 1) {
-        const branch = findBranchContainingWord(confirmedBranches, fromWord);
-        if (!branch) return false;
-
-        const updatedBranch = extendBranchContinuation(branch, fromWord, nextEdge);
-
-        setConfirmedBranches((current) =>
-          current.map((item) => (item.id === branch.id ? updatedBranch : item))
-        );
-        setActiveBranchId(branch.id);
-
-        const branchPath = buildWinPathFromBranch(
-          puzzle.start,
-          confirmedEdges,
-          updatedBranch
-        );
-
-        if (canonical === puzzle.end) {
-          setStatus("won");
-          finalizeScore(branchPath, guessStats);
-        } else {
-          notePathArrival(branchPath);
-        }
-        return true;
-      }
-
-      const nextPath = [...path.slice(0, fromIndex + 1), canonical];
-      setConfirmedEdges((current) => [...current.slice(0, fromIndex), nextEdge]);
-      setRejectedBranches((current) =>
-        current.filter((branch) => nextPath.slice(0, -1).includes(branch.from))
-      );
-      setActiveBranchId(undefined);
-
-      if (canonical === puzzle.end) {
-        setStatus("won");
-        finalizeScore(nextPath, guessStats);
-      } else {
-        notePathArrival(nextPath);
-      }
-      return true;
       } catch {
         return { accepted: false, shake: false };
       } finally {
@@ -658,19 +626,46 @@ export function useGame() {
         setSubmitting(false);
       }
     },
-    [confirmedBranches, confirmedEdges, currentWord, finalizeScore, notePathArrival, path, puzzle, recordGuess, startTimer, status, totalGuesses, wrongGuesses]
+    [
+      currentWord,
+      finalizeScore,
+      graphEdges,
+      graphNodes,
+      notePathArrival,
+      puzzle,
+      recordGuess,
+      startTimer,
+      status,
+      totalGuesses,
+      wrongGuesses,
+    ]
   );
+
+  const persistLayout = useCallback((positions: Array<{ id: string; x: number; y: number }>) => {
+    if (positions.length === 0) return;
+    const byId = new Map(positions.map((pos) => [pos.id, pos]));
+    setGraphNodes((nodes) => {
+      let changed = false;
+      const next = nodes.map((node) => {
+        const pos = byId.get(node.id);
+        if (!pos) return node;
+        if (node.layoutX === pos.x && node.layoutY === pos.y) return node;
+        changed = true;
+        return { ...node, layoutX: pos.x, layoutY: pos.y };
+      });
+      return changed ? next : nodes;
+    });
+  }, []);
 
   return {
     puzzle,
-    path,
-    confirmedEdges,
-    confirmedBranches,
+    graphNodes,
+    graphEdges,
     rejectedBranches,
-    activeBranchId,
-    hopsToEnd,
+    currentNodeId,
     currentWord,
     currentHopsToEnd,
+    closestHopsToEnd,
     totalGuesses,
     wrongGuesses,
     status,
@@ -684,5 +679,6 @@ export function useGame() {
     startTimer,
     submitWord,
     submitting,
+    persistLayout,
   };
 }

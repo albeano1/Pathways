@@ -153,16 +153,23 @@ export async function scorePath(
 export type {
   ConfirmedBranch,
   ConfirmedEdge,
+  GraphEdge,
+  GraphNode,
   Puzzle,
   RejectedBranch,
   ScoreResponse,
 } from "../../../shared/types";
 
 export {
-  buildPathFromEdges,
-  branchTip,
-  buildExplorePath,
-  buildWinPathFromBranch,
-  extendBranchContinuation,
-  findBranchContainingWord,
-} from "./pathUtils";
+  buildExploreFromGraph,
+  closestHopsInGraph,
+  createStartNode,
+  hasGraphEdge,
+  migrateTreeToGraph,
+  nextEdgeId,
+  nextNodeId,
+  nodeByWord,
+  resolveParentNodeId,
+  shortestWinPath,
+  syncGraphCounters,
+} from "./graphUtils";

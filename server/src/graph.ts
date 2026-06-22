@@ -473,12 +473,13 @@ export class GraphService {
     return morphologicalVariants(lemma, (candidate) => this.lookupLemma(candidate) !== null);
   }
 
-  /** Pick a path node the guess connects to: active word first, otherwise the latest match. */
-  private pickPathConnection(
+  /**
+   * Find every path node the guess connects to (web semantics — all parents).
+   */
+  private findPathConnections(
     resolvedPath: string[],
-    resolvedFrom: string | null,
     toVariants: string[]
-  ): { index: number; relation: string; connectedTo: string } | null {
+  ): Array<{ index: number; relation: string; connectedTo: string }> {
     const matches: Array<{ index: number; relation: string; connectedTo: string }> = [];
 
     for (let i = 0; i < resolvedPath.length; i++) {
@@ -496,17 +497,36 @@ export class GraphService {
       }
     }
 
-    if (matches.length === 0) return null;
+    return matches;
+  }
 
-    if (resolvedFrom) {
-      const activeIndex = resolvedPath.indexOf(resolvedFrom);
-      if (activeIndex >= 0) {
-        const activeMatch = matches.find((match) => match.index === activeIndex);
-        if (activeMatch) return activeMatch;
-      }
+  private buildStepConnection(
+    resolvedPath: string[],
+    resolvedEnd: string,
+    match: { index: number; relation: string; connectedTo: string },
+    childHopsToEnd: number | null
+  ) {
+    const resolvedFromNode = resolvedPath[match.index]!;
+    const previousHopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedFromNode);
+    let proximity: Proximity = "same";
+
+    if (
+      previousHopsToEnd !== null &&
+      childHopsToEnd !== null &&
+      match.connectedTo !== resolvedEnd
+    ) {
+      if (childHopsToEnd < previousHopsToEnd) proximity = "closer";
+      else if (childHopsToEnd > previousHopsToEnd) proximity = "farther";
     }
 
-    return matches.reduce((best, match) => (match.index > best.index ? match : best));
+    return {
+      connectFromIndex: match.index,
+      connectedFrom: resolvedFromNode,
+      relation: match.relation,
+      hopsToEnd: childHopsToEnd ?? 0,
+      previousHopsToEnd: previousHopsToEnd ?? 0,
+      proximity,
+    };
   }
 
   analyzeStep(
@@ -539,6 +559,31 @@ export class GraphService {
 
     const toVariants = this.morphVariants(resolvedTo);
     const duplicateVariant = toVariants.find((variant) => resolvedPath.includes(variant));
+    const matches = this.findPathConnections(resolvedPath, toVariants);
+
+    if (matches.length > 0) {
+      const connectedTo = matches[0]!.connectedTo;
+      const reachedGoal = connectedTo === resolvedEnd;
+      const hopsToEnd = reachedGoal ? 0 : this.distanceFromEnd(resolvedEnd, connectedTo);
+      const canonicalWord = connectedTo !== normalizedTo ? connectedTo : undefined;
+      const connections = matches.map((match) =>
+        this.buildStepConnection(resolvedPath, resolvedEnd, match, hopsToEnd)
+      );
+      const first = connections[0]!;
+
+      return {
+        valid: true,
+        relation: first.relation,
+        canonicalWord,
+        connectedFrom: first.connectedFrom,
+        connectFromIndex: first.connectFromIndex,
+        connections,
+        hopsToEnd: hopsToEnd ?? undefined,
+        previousHopsToEnd: first.previousHopsToEnd,
+        proximity: first.proximity,
+      };
+    }
+
     if (duplicateVariant) {
       return {
         valid: false,
@@ -547,39 +592,6 @@ export class GraphService {
           duplicateVariant !== normalizedTo
             ? `"${to}" matches "${duplicateVariant}", which is already in your path`
             : `"${to}" is already in your path`,
-      };
-    }
-
-    const connection = this.pickPathConnection(resolvedPath, resolvedFrom, toVariants);
-
-    if (connection) {
-      const { index: connectFromIndex, relation: connectRelation, connectedTo } = connection;
-      const resolvedFromNode = resolvedPath[connectFromIndex]!;
-      const reachedGoal = connectedTo === resolvedEnd;
-      const previousHopsToEnd = this.distanceFromEnd(resolvedEnd, resolvedFromNode);
-      const hopsToEnd = reachedGoal ? 0 : this.distanceFromEnd(resolvedEnd, connectedTo);
-      const canonicalWord = connectedTo !== normalizedTo ? connectedTo : undefined;
-      let proximity: Proximity | undefined;
-
-      if (
-        previousHopsToEnd !== null &&
-        hopsToEnd !== null &&
-        connectedTo !== resolvedEnd
-      ) {
-        if (hopsToEnd < previousHopsToEnd) proximity = "closer";
-        else if (hopsToEnd > previousHopsToEnd) proximity = "farther";
-        else proximity = "same";
-      }
-
-      return {
-        valid: true,
-        relation: connectRelation,
-        canonicalWord,
-        connectedFrom: resolvedFromNode,
-        connectFromIndex,
-        hopsToEnd: hopsToEnd ?? undefined,
-        previousHopsToEnd: previousHopsToEnd ?? undefined,
-        proximity,
       };
     }
 

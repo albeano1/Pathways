@@ -1,5 +1,9 @@
 import type { PathNodeVariant } from "./PathNode";
-import type { PositionedNode } from "./treeLayout";
+
+interface GeometryNode {
+  y: number;
+  variant: PathNodeVariant;
+}
 
 /** Matches .path-node__word padding, border, and text box from CSS. */
 const WORD_PILL_H = 56;
@@ -22,12 +26,12 @@ export function visualHeightForVariant(variant: PathNodeVariant): number {
 }
 
 /** Y offset from node top to the bottom of the word pill (edge leaves here). */
-export function nodeBottomY(node: PositionedNode): number {
+export function nodeBottomY(node: GeometryNode): number {
   return node.y + wordHeight(node.variant);
 }
 
 /** Y offset from node top to the top of the word pill (edge arrives here). */
-export function nodeWordTopY(node: PositionedNode): number {
+export function nodeWordTopY(node: GeometryNode): number {
   return node.y;
 }
 
@@ -38,7 +42,10 @@ export interface EdgeAnchors {
   y2: number;
 }
 
-export function edgeAnchors(from: PositionedNode, to: PositionedNode): EdgeAnchors {
+export function edgeAnchors(
+  from: GeometryNode & { x: number },
+  to: GeometryNode & { x: number }
+): EdgeAnchors {
   return {
     x1: from.x,
     y1: nodeBottomY(from),
@@ -48,7 +55,10 @@ export function edgeAnchors(from: PositionedNode, to: PositionedNode): EdgeAncho
 }
 
 /** Place label midway along the visible connector, between node boxes. */
-export function edgeLabelPoint(from: PositionedNode, to: PositionedNode): { x: number; y: number } {
+export function edgeLabelPoint(
+  from: GeometryNode & { x: number },
+  to: GeometryNode & { x: number }
+): { x: number; y: number } {
   const { x1, y1, x2, y2 } = edgeAnchors(from, to);
   const t = 0.5;
   return {
@@ -57,6 +67,6 @@ export function edgeLabelPoint(from: PositionedNode, to: PositionedNode): { x: n
   };
 }
 
-export function nodeVisualHeight(node: PositionedNode): number {
+export function nodeVisualHeight(node: GeometryNode): number {
   return visualHeightForVariant(node.variant);
 }

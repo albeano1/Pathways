@@ -61,6 +61,9 @@ export async function fetchDictionaryEntry(lemma: string): Promise<DictionaryRes
   if (dictionaryCache.has(key)) return dictionaryCache.get(key)!;
 
   const result = await fetchDictionaryFromApi(key);
-  dictionaryCache.set(key, result);
+  // Only cache successful lookups — transient API failures should be retried.
+  if (result) {
+    dictionaryCache.set(key, result);
+  }
   return result;
 }

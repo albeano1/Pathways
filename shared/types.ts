@@ -29,18 +29,50 @@ export interface ValidateStepRequest {
   path?: string[];
 }
 
+/** One parent anchor the guess connects from on the explore path. */
+export interface StepConnection {
+  connectFromIndex: number;
+  connectedFrom: string;
+  relation: string;
+  hopsToEnd: number;
+  previousHopsToEnd: number;
+  proximity: Proximity;
+}
+
 export interface ValidateStepResponse {
   valid: boolean;
   relation?: string;
   canonicalWord?: string;
   failureType?: FailureType;
   connectsTo?: PathConnection[];
+  /** All path nodes the guess connects from (web semantics). */
+  connections?: StepConnection[];
   hopsToEnd?: number;
   previousHopsToEnd?: number;
   proximity?: Proximity;
   connectedFrom?: string;
   connectFromIndex?: number;
   error?: string;
+}
+
+export interface GraphNode {
+  id: string;
+  word: string;
+  hopsToEnd: number;
+  createdAt: number;
+  /** Persisted layout position (layout coordinate space). */
+  layoutX?: number;
+  layoutY?: number;
+}
+
+export interface GraphEdge {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  relation: string;
+  proximity?: Proximity;
+  hopsToEnd: number;
+  rejected?: boolean;
 }
 
 /** Precomputed valid guesses for the current explore path. */
@@ -62,6 +94,12 @@ export interface ConfirmedBranch {
   id: string;
   from: string;
   fromTrunkIndex: number;
+  /**
+   * Node key this branch forks from. May reference a trunk node (`T<index>`) or
+   * a node inside another branch (`<branchId>#<position>`), enabling forks off
+   * any existing node. Optional for back-compat with legacy saved games.
+   */
+  fromKey?: string;
   to: string;
   relation: string;
   hopsToEnd?: number;

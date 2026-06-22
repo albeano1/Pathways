@@ -50,39 +50,40 @@ describe("GraphService plural variants", () => {
 describe("GraphService path connection search", () => {
   const graph = createBranchAnchorTestGraph();
 
-  it("extends from the branch node when it is first matching path word", () => {
+  it("returns a single connection when only one path node matches", () => {
     graph.warmEndDistances("goal");
     const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
     const result = graph.analyzeStep("poetry", "goal", "goal", explorePath);
     expect(result.valid).toBe(true);
+    expect(result.connections).toHaveLength(1);
     expect(result.connectedFrom).toBe("poetry");
     expect(result.connectFromIndex).toBe(3);
   });
 
-  it("connects from any explored path node, not only the active tip", () => {
-    graph.warmEndDistances("goal");
-    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
-    const result = graph.analyzeStep("poetry", "target", "goal", explorePath);
-    expect(result.valid).toBe(true);
-    expect(result.connectedFrom).toBe("cadet");
-    expect(result.connectFromIndex).toBe(4);
-  });
-
-  it("prefers active from when several path nodes connect", () => {
+  it("returns all matching path nodes in connections", () => {
     graph.warmEndDistances("goal");
     const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
     const result = graph.analyzeStep("cadet", "army", "goal", explorePath);
     expect(result.valid).toBe(true);
-    expect(result.connectedFrom).toBe("cadet");
-    expect(result.connectFromIndex).toBe(4);
+    expect(result.connections?.length).toBeGreaterThanOrEqual(2);
+    const indices = result.connections!.map((item) => item.connectFromIndex);
+    expect(indices).toContain(0);
+    expect(indices).toContain(4);
   });
 
-  it("prefers latest matching node when active from does not connect", () => {
+  it("allows reconnecting an existing word when new parents match", () => {
     graph.warmEndDistances("goal");
-    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet"];
-    const result = graph.analyzeStep("line", "army", "goal", explorePath);
+    const explorePath = ["sergeant", "sentence", "line", "poetry", "cadet", "army"];
+    const result = graph.analyzeStep("cadet", "army", "goal", explorePath);
     expect(result.valid).toBe(true);
-    expect(result.connectedFrom).toBe("cadet");
-    expect(result.connectFromIndex).toBe(4);
+    expect(result.connections?.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rejects duplicate when the word is on the path with no new connections", () => {
+    graph.warmEndDistances("goal");
+    const explorePath = ["sergeant"];
+    const result = graph.analyzeStep("sergeant", "sergeant", "goal", explorePath);
+    expect(result.valid).toBe(false);
+    expect(result.failureType).toBe("duplicate");
   });
 });

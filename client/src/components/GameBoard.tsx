@@ -3,7 +3,7 @@ import { getDebugPuzzleFromUrl } from "../debugPuzzle";
 import { clearDailySession } from "../dailyStorage";
 import { getWinStreak } from "../solveStats";
 import { useGame } from "../hooks/useGame";
-import { PathTree } from "./PathTree";
+import { GraphView } from "./GraphView";
 import { WinPopup } from "./WinPopup";
 import { WordInfoSheet } from "./WordInfoSheet";
 import { WordInput } from "./WordInput";
@@ -13,13 +13,13 @@ export function GameBoard() {
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const {
     puzzle,
-    path,
-    confirmedEdges,
-    confirmedBranches,
+    graphNodes,
+    graphEdges,
     rejectedBranches,
-    activeBranchId,
+    currentNodeId,
     currentWord,
     currentHopsToEnd,
+    closestHopsToEnd,
     status,
     error,
     score,
@@ -30,6 +30,7 @@ export function GameBoard() {
     startTimer,
     submitWord,
     submitting,
+    persistLayout,
   } = useGame();
 
   const handleNextPuzzle = () => {
@@ -61,13 +62,15 @@ export function GameBoard() {
   const playing = status === "playing";
   const winStreak = getWinStreak();
   const displayHopsToEnd =
-    currentHopsToEnd ?? (confirmedEdges.length === 0 ? puzzle.optimalHops : undefined);
+    currentHopsToEnd ?? (graphNodes.length <= 1 ? puzzle.optimalHops : undefined);
+  const proximityHops =
+    closestHopsToEnd ?? (graphNodes.length <= 1 ? puzzle.optimalHops : undefined);
   const closeCount =
     playing &&
-    displayHopsToEnd !== undefined &&
-    displayHopsToEnd > 0 &&
-    displayHopsToEnd <= 3
-      ? displayHopsToEnd
+    proximityHops !== undefined &&
+    proximityHops > 0 &&
+    proximityHops <= 3
+      ? proximityHops
       : undefined;
 
   return (
@@ -95,19 +98,18 @@ export function GameBoard() {
         ) : null}
 
         <div className="play-stage">
-          <PathTree
+          <GraphView
             start={puzzle.start}
             end={puzzle.end}
-            path={path}
-            confirmedEdges={confirmedEdges}
-            confirmedBranches={confirmedBranches}
+            graphNodes={graphNodes}
+            graphEdges={graphEdges}
             rejectedBranches={rejectedBranches}
-            activeBranchId={activeBranchId}
+            currentNodeId={currentNodeId}
             currentWord={currentWord}
-            hopsToEnd={displayHopsToEnd ?? puzzle.optimalHops}
             initialHops={puzzle.optimalHops}
             complete={status === "won"}
             closeCount={closeCount}
+            onPersistLayout={persistLayout}
             onWordSelect={setSelectedWord}
           />
         </div>

@@ -37,8 +37,9 @@ export function WordInfoSheet({ word, onClose }: WordInfoSheetProps) {
     let cancelled = false;
     const key = word.trim().toLowerCase();
     const cached = getCachedWordInfo(key);
+    const cacheUsable = cached && ((cached.senses?.length ?? 0) > 0 || !cached.inGraph);
 
-    if (cached) {
+    if (cacheUsable) {
       setLemma(cached.lemma);
       setSenses(cached.senses ?? []);
       setError(cached.error ?? null);
@@ -51,7 +52,7 @@ export function WordInfoSheet({ word, onClose }: WordInfoSheetProps) {
     setLemma(word);
     setSenses([]);
 
-    void fetchWordInfo(word).then((info) => {
+    void fetchWordInfo(word, { force: Boolean(cached) }).then((info) => {
       if (cancelled) return;
       setLemma(info.lemma);
       setSenses(info.senses ?? []);

@@ -5,21 +5,20 @@ export interface TreeContentSize {
   height: number;
 }
 
-interface TreeScaleOptions {
-  /** Fit width only and allow vertical scrolling (mobile). */
-  widthOnly?: boolean;
-}
+const MIN_SCALE = 0.06;
+const MAX_UPSCALE = 2.35;
+/** Use slightly less than 100% of content bounds so scale can be a touch larger without clipping. */
+const PHONE_CONTENT_INSET = 0.98;
+const DESKTOP_CONTENT_INSET = 0.98;
 
-const PAD_X = 48;
-const PAD_Y = 32;
-
-/** Scale tree canvas to fit the viewport (anchored at top center). */
+/**
+ * Uniform scale so the full graph fits in the play area.
+ * Layout keeps natural spacing; we shrink/grow via transform only.
+ */
 export function useTreeScale(
   viewportRef: RefObject<HTMLElement | null>,
-  treeSize: TreeContentSize,
-  options: TreeScaleOptions = {}
+  treeSize: TreeContentSize
 ): number {
-  const { widthOnly = false } = options;
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
@@ -27,29 +26,28 @@ export function useTreeScale(
     if (!viewport) return;
 
     const update = () => {
-      const isMobile = viewport.clientWidth <= 720;
-      const margin = isMobile ? 6 : 16;
+      const isPhone = viewport.clientWidth <= 720;
+      const margin = isPhone ? 2 : 8;
       const availableWidth = viewport.clientWidth - margin * 2;
-      const availableHeight = viewport.clientHeight - margin;
-      const contentWidth = treeSize.width + PAD_X * 0.5;
-      const contentHeight = treeSize.height + PAD_Y * 0.5;
+      const availableHeight = viewport.clientHeight - margin * 2;
+      const contentInset = isPhone ? PHONE_CONTENT_INSET : DESKTOP_CONTENT_INSET;
+      const contentWidth = treeSize.width * contentInset;
+      const contentHeight = treeSize.height * contentInset;
 
       if (contentWidth <= 0 || contentHeight <= 0 || availableWidth <= 0 || availableHeight <= 0) {
         setScale(1);
         return;
       }
 
-      const widthScale = availableWidth / contentWidth;
-      let raw: number;
+      const scaleW = availableWidth / contentWidth;
+      const scaleH = availableHeight / contentHeight;
+      const fitScale = Math.min(scaleW, scaleH);
 
-      if (widthOnly) {
-        raw = Math.min(1, widthScale);
-      } else {
-        raw = Math.min(1, widthScale, availableHeight / contentHeight);
-      }
+      const isUltraWide =
+        availableWidth >= 960 && availableWidth > availableHeight * 1.45;
+      const maxScale = isUltraWide ? MAX_UPSCALE : isPhone ? 1 : 1.35;
 
-      const minScale = widthOnly ? 0.72 : 0.32;
-      const clamped = Math.max(minScale, raw);
+      const clamped = Math.max(MIN_SCALE, Math.min(maxScale, fitScale));
 
       setScale((prev) => {
         if (Math.abs(clamped - prev) < 0.01) return prev;
@@ -66,7 +64,7 @@ export function useTreeScale(
       observer.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, [viewportRef, treeSize.width, treeSize.height, widthOnly]);
+  }, [viewportRef, treeSize.width, treeSize.height]);
 
   return scale;
 }

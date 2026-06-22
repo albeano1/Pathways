@@ -7,6 +7,12 @@ function cacheKey(word: string): string {
   return word.trim().toLowerCase();
 }
 
+function shouldCache(info: WordInfoResponse): boolean {
+  if (info.error) return false;
+  if (!info.inGraph) return true;
+  return (info.senses?.length ?? 0) > 0;
+}
+
 export function getCachedWordInfo(word: string): WordInfoResponse | undefined {
   return infoCache.get(cacheKey(word));
 }
@@ -23,7 +29,9 @@ async function fetchWordInfoOnce(word: string): Promise<WordInfoResponse> {
       };
     }
     const info = (await response.json()) as WordInfoResponse;
-    infoCache.set(key, info);
+    if (shouldCache(info)) {
+      infoCache.set(key, info);
+    }
     return info;
   } catch {
     return {
@@ -34,14 +42,18 @@ async function fetchWordInfoOnce(word: string): Promise<WordInfoResponse> {
   }
 }
 
-export async function fetchWordInfo(word: string): Promise<WordInfoResponse> {
+export async function fetchWordInfo(word: string, options?: { force?: boolean }): Promise<WordInfoResponse> {
   const key = cacheKey(word);
   if (!key) {
     return { lemma: "", inGraph: false, error: "Missing word." };
   }
 
-  const cached = infoCache.get(key);
-  if (cached) return cached;
+  if (!options?.force) {
+    const cached = infoCache.get(key);
+    if (cached) return cached;
+  } else {
+    infoCache.delete(key);
+  }
 
   const pending = inflight.get(key);
   if (pending) return pending;

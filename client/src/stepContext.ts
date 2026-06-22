@@ -15,7 +15,9 @@ export function stepContextKey(end: string, path: string[], from?: string): stri
     from?.trim().toLowerCase() ??
     path[path.length - 1]?.trim().toLowerCase() ??
     "";
-  return `${end.trim().toLowerCase()}|${path.map((word) => word.trim().toLowerCase()).join(",")}|${activeFrom}`;
+  return `${end.trim().toLowerCase()}|${path
+    .map((word) => word.trim().toLowerCase())
+    .join(",")}|${activeFrom}`;
 }
 
 let cachedKey = "";
@@ -133,7 +135,6 @@ async function loadStepContext(
       }
     }
 
-    // First move: prefer the precomputed static file before waking the API.
     const fromStatic = await fetchStaticStepContext(key);
     if (fromStatic) return fromStatic;
   }
@@ -141,7 +142,6 @@ async function loadStepContext(
   return fetchStepContext(end, path, from);
 }
 
-/** First-move step context from the precomputed static file (CDN, no cold function). */
 async function fetchStaticStepContext(key: string): Promise<StepContextResponse | null> {
   try {
     const response = await fetch(`/daily/${getPuzzleDateKey()}.step.json`, {

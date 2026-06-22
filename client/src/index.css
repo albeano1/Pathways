@@ -182,11 +182,25 @@ button {
 
 .graph-view .path-tree__tree-area {
   padding-top: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
+  overflow: hidden;
   pointer-events: auto;
+}
+
+.graph-view--scrollable .path-tree__tree-area {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  align-items: flex-start;
+}
+
+.graph-view--scrollable .path-tree__scale-wrap {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.graph-view--horizontal .path-tree__tree-area {
+  align-items: center;
+  overflow: hidden;
 }
 
 .graph-view__legend-chrome {
@@ -201,13 +215,76 @@ button {
   pointer-events: auto;
 }
 
-.graph-view--mobile .path-tree__tree-area {
-  align-items: flex-start;
+.graph-view--mobile .path-tree__scale-inner--align-left,
+.graph-view--portrait .path-tree__scale-inner--align-left {
+  left: 0;
 }
 
-.graph-view--mobile .path-tree__scale-inner--align-left {
-  left: 6px;
-  transform-origin: top left;
+.graph-view--mobile .pathway-legend-btn,
+.graph-view--portrait .pathway-legend-btn {
+  margin: 2px 2px 0;
+  width: 28px;
+  height: 28px;
+}
+
+.graph-view--mobile .pathway-legend-btn__icon,
+.graph-view--portrait .pathway-legend-btn__icon {
+  width: 16px;
+  height: 16px;
+}
+
+.graph-view--portrait .goal-bar {
+  width: calc(100% - 16px);
+  margin: 0 8px 2px;
+}
+
+.graph-view--portrait .goal-bar__word {
+  padding: 5px 12px 7px;
+}
+
+.graph-view--mobile .path-node,
+.graph-view--portrait .path-node {
+  gap: 4px;
+}
+
+.graph-view--mobile .path-node__word,
+.graph-view--portrait .path-node__word {
+  min-width: 120px;
+  padding: 18px 26px;
+  font-size: 1.22rem;
+  border-radius: 18px;
+  border-width: 3px;
+}
+
+.graph-view--mobile .path-node--labeled .path-node__word,
+.graph-view--portrait .path-node--labeled .path-node__word {
+  gap: 3px;
+  padding: 12px 26px 16px;
+}
+
+.graph-view--mobile .path-node__hint,
+.graph-view--portrait .path-node__hint {
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+}
+
+.graph-view--mobile .path-node--rejected .path-node__word,
+.graph-view--portrait .path-node--rejected .path-node__word {
+  min-width: 104px;
+  padding: 14px 20px;
+  font-size: 1.1rem;
+}
+
+.graph-view--mobile .path-node--current .path-node__word,
+.graph-view--portrait .path-node--current .path-node__word,
+.graph-view--mobile .path-node--win-tip .path-node__word,
+.graph-view--portrait .path-node--win-tip .path-node__word {
+  box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.16);
+}
+
+.graph-view--mobile .path-node--target .path-node__word,
+.graph-view--portrait .path-node--target .path-node__word {
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.18);
 }
 
 .pathway-legend-btn {
@@ -375,6 +452,11 @@ button {
   left: 50%;
   transform-origin: top center;
   pointer-events: none;
+}
+
+.graph-view--mobile .path-tree__scale-inner--align-left,
+.graph-view--portrait .path-tree__scale-inner--align-left {
+  transform-origin: top left;
 }
 
 .path-tree__scale-inner .tree-canvas {
@@ -1367,11 +1449,11 @@ button {
 
 @media (max-width: 720px) {
   .app {
-    padding: 4px 6px 2px;
+    padding: 2px 4px 0;
   }
 
   .play-dock {
-    padding: 5px 10px max(3px, env(safe-area-inset-bottom, 3px));
+    padding: 4px 8px max(2px, env(safe-area-inset-bottom, 2px));
   }
 
   .word-input__field {
@@ -1391,25 +1473,26 @@ button {
   }
 
   .path-node__word {
-    min-width: 84px;
-    padding: 10px 14px;
-    font-size: 0.95rem;
-    border-radius: 14px;
+    min-width: 120px;
+    padding: 18px 26px;
+    font-size: 1.22rem;
+    border-radius: 18px;
+    border-width: 3px;
   }
 
   .path-node--rejected .path-node__word {
-    min-width: 72px;
-    padding: 8px 12px;
-    font-size: 0.88rem;
+    min-width: 104px;
+    padding: 14px 20px;
+    font-size: 1.1rem;
   }
 
   .goal-bar {
-    width: calc(100% - 20px);
-    margin: 0 10px 4px;
+    width: calc(100% - 16px);
+    margin: 0 8px 2px;
   }
 
   .goal-bar__word {
-    padding: 7px 14px 10px;
+    padding: 5px 12px 7px;
   }
 
   .goal-bar__text {

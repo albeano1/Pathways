@@ -7,7 +7,7 @@ import { RelationLegend } from "./RelationLegend";
 import { GoalBar } from "./GoalBar";
 import { GraphCanvas } from "./GraphCanvas";
 import { buildRenderGraph } from "./graphModel";
-import { computeGraphLayout, graphCanvasSize, type PinnedPosition } from "./graphLayout";
+import { computeGraphLayout, graphCanvasSize, isCompactLayout, isHorizontalLayout, useFixedGraphScale, useScrollableGraph, type PinnedPosition } from "./graphLayout";
 import { TrunkGoalLink } from "./TrunkGoalLink";
 
 interface GraphViewProps {
@@ -47,8 +47,14 @@ export function GraphView({
 
   const won = complete === true || graphNodes.some((node) => node.word === end);
   const goalGapHeight = 0;
-  const [panelBudget, setPanelBudget] = useState(400);
-  const [panelWidth, setPanelWidth] = useState(720);
+  const [panelBudget, setPanelBudget] = useState(0);
+  const [panelWidth, setPanelWidth] = useState(0);
+  const isPortrait = panelBudget > panelWidth;
+  const horizontalLayout = isHorizontalLayout(panelWidth, panelBudget);
+  const compactLayout = isCompactLayout(panelWidth, panelBudget);
+  const fixedScaleMode = useFixedGraphScale(panelWidth, panelBudget, isMobile);
+  const scrollableGraph = useScrollableGraph(panelWidth, panelBudget, isMobile);
+  const leftAlignedGraph = scrollableGraph;
 
   const pinned = useMemo(() => {
     const map = new Map<string, PinnedPosition>();
@@ -99,8 +105,8 @@ export function GraphView({
     onPersistLayout(toPersist);
   }, [layout.newPositions, onPersistLayout, graphNodes]);
 
-  const canvasSize = graphCanvasSize(layout, panelWidth);
-  const scale = useTreeScale(treeAreaRef, canvasSize);
+  const canvasSize = graphCanvasSize(layout, panelWidth, panelBudget);
+  const scale = useTreeScale(treeAreaRef, canvasSize, fixedScaleMode, compactLayout, horizontalLayout);
 
   useLayoutEffect(() => {
     const panel = pathTreeRef.current;
@@ -129,7 +135,7 @@ export function GraphView({
 
   return (
     <div
-      className={["path-tree graph-view", won ? "path-tree--won" : "", isMobile ? "graph-view--mobile" : ""]
+      className={["path-tree graph-view", won ? "path-tree--won" : "", isMobile ? "graph-view--mobile" : "", isPortrait ? "graph-view--portrait" : "", horizontalLayout ? "graph-view--horizontal" : "", scrollableGraph ? "graph-view--scrollable" : ""]
         .filter(Boolean)
         .join(" ")}
       ref={pathTreeRef}
@@ -155,19 +161,24 @@ export function GraphView({
           <div
             className={[
               "path-tree__scale-inner",
-              isMobile ? "path-tree__scale-inner--align-left" : "",
+              leftAlignedGraph ? "path-tree__scale-inner--align-left" : "",
             ]
               .filter(Boolean)
               .join(" ")}
             style={{
               width: canvasSize.width,
               height: canvasSize.height,
-              transform: isMobile
+              transform: leftAlignedGraph
                 ? `scale(${scale})`
                 : `translateX(-50%) scale(${scale})`,
             }}
           >
-            <GraphCanvas layout={layout} panelWidth={panelWidth} onWordSelect={onWordSelect} />
+            <GraphCanvas
+              layout={layout}
+              panelWidth={panelWidth}
+              panelHeight={panelBudget}
+              onWordSelect={onWordSelect}
+            />
           </div>
         </div>
       </div>

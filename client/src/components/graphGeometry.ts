@@ -1,28 +1,27 @@
 import type { PositionedNode } from "./graphLayout";
-import { visualHeightForVariant } from "./treeGeometry";
+import { isCompactLayout } from "./graphLayout";
+import { layoutNodeWidth, visualHeightForVariant } from "./treeGeometry";
 
-/** Half-width of the word pill (matches layout NODE_W / 2). */
-const NODE_HALF_W = 62;
-
-function nodeCenter(node: PositionedNode): { x: number; y: number } {
-  const height = visualHeightForVariant(node.variant);
+function nodeCenter(node: PositionedNode, compact: boolean): { x: number; y: number } {
+  const height = visualHeightForVariant(node.variant, compact);
   return { x: node.x, y: node.y + height / 2 };
 }
 
-function nodeHalfExtents(node: PositionedNode): { hw: number; hh: number } {
+function nodeHalfExtents(node: PositionedNode, compact: boolean): { hw: number; hh: number } {
   return {
-    hw: NODE_HALF_W,
-    hh: visualHeightForVariant(node.variant) / 2,
+    hw: layoutNodeWidth(compact) / 2,
+    hh: visualHeightForVariant(node.variant, compact) / 2,
   };
 }
 
 /** Ray from node center toward `target`, stopped at the pill border. */
 function anchorOnBorder(
   node: PositionedNode,
-  target: { x: number; y: number }
+  target: { x: number; y: number },
+  compact: boolean
 ): { x: number; y: number } {
-  const center = nodeCenter(node);
-  const { hw, hh } = nodeHalfExtents(node);
+  const center = nodeCenter(node, compact);
+  const { hw, hh } = nodeHalfExtents(node, compact);
   const dx = target.x - center.x;
   const dy = target.y - center.y;
   const dist = Math.hypot(dx, dy);
@@ -50,11 +49,15 @@ export interface EdgeAnchors {
 }
 
 /** Anchor on each node border facing the other node. */
-export function graphEdgeAnchors(from: PositionedNode, to: PositionedNode): EdgeAnchors {
-  const toCenter = nodeCenter(to);
-  const fromCenter = nodeCenter(from);
-  const start = anchorOnBorder(from, toCenter);
-  const end = anchorOnBorder(to, fromCenter);
+export function graphEdgeAnchors(
+  from: PositionedNode,
+  to: PositionedNode,
+  compact = false
+): EdgeAnchors {
+  const toCenter = nodeCenter(to, compact);
+  const fromCenter = nodeCenter(from, compact);
+  const start = anchorOnBorder(from, toCenter, compact);
+  const end = anchorOnBorder(to, fromCenter, compact);
   return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
 }
 
@@ -77,8 +80,8 @@ function pointToSegmentDistance(
   return Math.hypot(px - projX, py - projY);
 }
 
-function nodeCollisionRadius(node: PositionedNode, padding = 10): number {
-  const { hw, hh } = nodeHalfExtents(node);
+function nodeCollisionRadius(node: PositionedNode, compact: boolean, padding = 10): number {
+  const { hw, hh } = nodeHalfExtents(node, compact);
   return Math.max(hw, hh) + padding;
 }
 
@@ -88,10 +91,14 @@ function segmentHitsNode(
   x2: number,
   y2: number,
   node: PositionedNode,
+  compact: boolean,
   padding = 10
 ): boolean {
-  const center = nodeCenter(node);
-  return pointToSegmentDistance(center.x, center.y, x1, y1, x2, y2) < nodeCollisionRadius(node, padding);
+  const center = nodeCenter(node, compact);
+  return (
+    pointToSegmentDistance(center.x, center.y, x1, y1, x2, y2) <
+    nodeCollisionRadius(node, compact, padding)
+  );
 }
 
 function sampleQuadratic(
@@ -112,7 +119,8 @@ function curveHitsNodes(
   control: { x: number; y: number },
   nodes: PositionedNode[],
   fromId: string,
-  toId: string
+  toId: string,
+  compact: boolean
 ): number {
   let hits = 0;
   const p0 = { x: anchors.x1, y: anchors.y1 };
@@ -125,7 +133,7 @@ function curveHitsNodes(
 
     for (const node of nodes) {
       if (node.id === fromId || node.id === toId) continue;
-      if (segmentHitsNode(prev.x, prev.y, point.x, point.y, node, 6)) {
+      if (segmentHitsNode(prev.x, prev.y, point.x, point.y, node, compact, 6)) {
         hits += 1;
       }
     }
@@ -138,7 +146,8 @@ function pickControlPoint(
   anchors: EdgeAnchors,
   nodes: PositionedNode[],
   fromId: string,
-  toId: string
+  toId: string,
+  compact: boolean
 ): { x: number; y: number } | null {
   const dx = anchors.x2 - anchors.x1;
   const dy = anchors.y2 - anchors.y1;
@@ -151,7 +160,7 @@ function pickControlPoint(
     (node) =>
       node.id !== fromId &&
       node.id !== toId &&
-      segmentHitsNode(anchors.x1, anchors.y1, anchors.x2, anchors.y2, node, 4)
+      segmentHitsNode(anchors.x1, anchors.y1, anchors.x2, anchors.y2, node, compact, 4)
   ).length;
 
   if (straightHits === 0 && Math.abs(dy) < 24) {
@@ -168,10 +177,10 @@ function pickControlPoint(
   ];
 
   let best = options[0]!;
-  let bestHits = curveHitsNodes(anchors, best, nodes, fromId, toId);
+  let bestHits = curveHitsNodes(anchors, best, nodes, fromId, toId, compact);
 
   for (const option of options.slice(1)) {
-    const hits = curveHitsNodes(anchors, option, nodes, fromId, toId);
+    const hits = curveHitsNodes(anchors, option, nodes, fromId, toId, compact);
     if (hits < bestHits) {
       best = option;
       bestHits = hits;
@@ -194,10 +203,13 @@ export function routeGraphEdge(
   to: PositionedNode,
   nodes: PositionedNode[],
   fromId: string,
-  toId: string
+  toId: string,
+  panelWidth = Number.POSITIVE_INFINITY,
+  panelHeight = 0
 ): RoutedEdge {
-  const anchors = graphEdgeAnchors(from, to);
-  const control = pickControlPoint(anchors, nodes, fromId, toId);
+  const compact = isCompactLayout(panelWidth, panelHeight);
+  const anchors = graphEdgeAnchors(from, to, compact);
+  const control = pickControlPoint(anchors, nodes, fromId, toId, compact);
 
   if (control) {
     return {

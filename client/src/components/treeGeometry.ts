@@ -7,22 +7,36 @@ interface GeometryNode {
 
 /** Matches .path-node__word padding, border, and text box from CSS. */
 const WORD_PILL_H = 56;
-/** Start / goal pills with an inline label. */
 const LABELED_PILL_H = 68;
+const REJECTED_PILL_H = 44;
 /** Extra clearance for .path-node--current / --win-tip box-shadow glow. */
 const ACTIVE_GLOW_H = 27;
 
-function wordHeight(variant: PathNodeVariant): number {
-  if (variant === "rejected") return 44;
-  if (variant === "current" || variant === "win-tip") return WORD_PILL_H + ACTIVE_GLOW_H;
-  if (variant === "start" || variant === "target" || variant === "target-ghost") {
-    return LABELED_PILL_H;
-  }
-  return WORD_PILL_H;
+const COMPACT_WORD_PILL_H = 72;
+const COMPACT_LABELED_PILL_H = 84;
+const COMPACT_REJECTED_PILL_H = 56;
+const COMPACT_ACTIVE_GLOW_H = 28;
+
+export const LAYOUT_NODE_W = 124;
+export const LAYOUT_NODE_W_COMPACT = 152;
+
+export function layoutNodeWidth(compact = false): number {
+  return compact ? LAYOUT_NODE_W_COMPACT : LAYOUT_NODE_W;
 }
 
-export function visualHeightForVariant(variant: PathNodeVariant): number {
-  return wordHeight(variant);
+function wordHeight(variant: PathNodeVariant, compact: boolean): number {
+  if (variant === "rejected") return compact ? COMPACT_REJECTED_PILL_H : REJECTED_PILL_H;
+  if (variant === "current" || variant === "win-tip") {
+    return (compact ? COMPACT_WORD_PILL_H : WORD_PILL_H) + (compact ? COMPACT_ACTIVE_GLOW_H : ACTIVE_GLOW_H);
+  }
+  if (variant === "start" || variant === "target" || variant === "target-ghost") {
+    return compact ? COMPACT_LABELED_PILL_H : LABELED_PILL_H;
+  }
+  return compact ? COMPACT_WORD_PILL_H : WORD_PILL_H;
+}
+
+export function visualHeightForVariant(variant: PathNodeVariant, compact = false): number {
+  return wordHeight(variant, compact);
 }
 
 /** Y offset from node top to the bottom of the word pill (edge leaves here). */

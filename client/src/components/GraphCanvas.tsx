@@ -15,6 +15,7 @@ import { PathNode } from "./PathNode";
 interface GraphCanvasProps {
   layout: GraphLayout;
   panelWidth?: number;
+  panelHeight?: number;
   onWordSelect?: (word: string) => void;
 }
 
@@ -26,10 +27,11 @@ function edgeStrokeColor(edge: PositionedEdge, index: number): string {
 export const GraphCanvas = memo(function GraphCanvas({
   layout,
   panelWidth,
+  panelHeight = 0,
   onWordSelect,
 }: GraphCanvasProps) {
-  const offset = graphCanvasOffset(layout, panelWidth);
-  const { width, height } = graphCanvasSize(layout, panelWidth);
+  const offset = graphCanvasOffset(layout, panelWidth, panelHeight);
+  const { width, height } = graphCanvasSize(layout, panelWidth, panelHeight);
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.id, node])),
     [layout.nodes]
@@ -45,11 +47,19 @@ export const GraphCanvas = memo(function GraphCanvas({
           return {
             edge,
             index,
-            routed: routeGraphEdge(from, to, layout.nodes, edge.fromId, edge.toId),
+            routed: routeGraphEdge(
+              from,
+              to,
+              layout.nodes,
+              edge.fromId,
+              edge.toId,
+              panelWidth,
+              panelHeight
+            ),
           };
         })
         .filter((item): item is NonNullable<typeof item> => item !== null),
-    [layout.edges, layout.nodes, nodeById]
+    [layout.edges, layout.nodes, nodeById, panelWidth, panelHeight]
   );
 
   return (

@@ -19,6 +19,15 @@ function assertDailyPuzzle(puzzle: Puzzle, dateKey: string): Puzzle {
   return puzzle;
 }
 
+/** Read today's puzzle from the precomputed static file (CDN, no cold function). */
+async function fetchStaticDailyPuzzle(dateKey: string): Promise<Puzzle> {
+  const response = await fetch(`/daily/${dateKey}.json`, {
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Static puzzle unavailable for ${dateKey}`);
+  return assertDailyPuzzle((await response.json()) as Puzzle, dateKey);
+}
+
 /**
  * Resolve today's puzzle from the API using the client's Pacific calendar date.
  * Avoids the baked daily-puzzle.json embed, which reflects deploy time and can
@@ -27,6 +36,16 @@ function assertDailyPuzzle(puzzle: Puzzle, dateKey: string): Puzzle {
 export async function resolveDailyPuzzle(dateKey = getPuzzleDateKey()): Promise<Puzzle> {
   const todayKey = clampPuzzleDateKey(dateKey);
   purgeStalePuzzleCache(todayKey);
+
+  // Prefer the precomputed static file; only wake the serverless API if it is missing.
+  try {
+    const fromStatic = await fetchStaticDailyPuzzle(todayKey);
+    writePuzzleCache(fromStatic);
+    writeSessionBootPuzzle(fromStatic);
+    return fromStatic;
+  } catch {
+    // Fall through to the API.
+  }
 
   try {
     const fromApi = assertDailyPuzzle(await fetchPuzzle({ date: todayKey }), todayKey);

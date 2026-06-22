@@ -56,8 +56,11 @@ export function readEmbeddedBootPuzzle(todayKey: string): Puzzle | null {
   if (!el?.textContent) return null;
 
   try {
-    const puzzle = JSON.parse(el.textContent) as Puzzle;
-    if (puzzle.puzzleDate !== todayKey || !puzzle.id?.startsWith("gen-")) return null;
+    const parsed = JSON.parse(el.textContent) as Puzzle | Record<string, Puzzle>;
+    // Multi-day map keyed by date, or a legacy single puzzle object.
+    const puzzle =
+      "puzzleDate" in parsed ? (parsed as Puzzle) : (parsed as Record<string, Puzzle>)[todayKey];
+    if (!puzzle || puzzle.puzzleDate !== todayKey || !puzzle.id?.startsWith("gen-")) return null;
     if (!puzzle.start || !puzzle.end) return null;
     return puzzle;
   } catch {

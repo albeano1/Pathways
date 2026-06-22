@@ -1,5 +1,6 @@
 import type { StepContextResponse, ValidateStepResponse } from "../../shared/types";
 import { generatePlurals, singularizeCandidates } from "../../shared/wordForms";
+import { getPuzzleDateKey } from "../../shared/dailyPuzzle";
 
 const API_BASE = "";
 
@@ -119,18 +120,42 @@ async function loadStepContext(
   from?: string
 ): Promise<StepContextResponse | null> {
   const key = stepContextKey(end, path, from);
-  const boot = typeof window !== "undefined" ? window.__pathwaysStepContextBoot : undefined;
-  if (boot && path.length === 1) {
-    const bootContext = await boot;
-    if (
-      bootContext &&
-      stepContextKey(bootContext.end, bootContext.path, bootContext.path[0]) === key
-    ) {
-      return bootContext;
+
+  if (path.length === 1) {
+    const boot = typeof window !== "undefined" ? window.__pathwaysStepContextBoot : undefined;
+    if (boot) {
+      const bootContext = await boot;
+      if (
+        bootContext &&
+        stepContextKey(bootContext.end, bootContext.path, bootContext.path[0]) === key
+      ) {
+        return bootContext;
+      }
     }
+
+    // First move: prefer the precomputed static file before waking the API.
+    const fromStatic = await fetchStaticStepContext(key);
+    if (fromStatic) return fromStatic;
   }
 
   return fetchStepContext(end, path, from);
+}
+
+/** First-move step context from the precomputed static file (CDN, no cold function). */
+async function fetchStaticStepContext(key: string): Promise<StepContextResponse | null> {
+  try {
+    const response = await fetch(`/daily/${getPuzzleDateKey()}.step.json`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const context = (await response.json()) as StepContextResponse;
+    if (stepContextKey(context.end, context.path, context.path[0]) === key) {
+      return context;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchStepContext(

@@ -65,6 +65,18 @@ The CSV is reused across builds; only the graph is rebuilt when the build script
 
 API routes (`/api/puzzle`, `/api/validate-step`, etc.) are rewritten to the `api` function. Check `https://your-site.netlify.app/api/health` after deploy — it should report ~20,000 words.
 
+### Scheduled embed refresh (~2.5 deploys/month)
+
+Daily puzzles are precomputed at build time and inlined for the next 14 days (zero-network start/goal). To keep that window rolling without pushing code, a GitHub Action triggers a Netlify rebuild on the **1st, 15th, and 29th** of each month (~6 AM Pacific).
+
+1. Netlify → **Site configuration** → **Build & deploy** → **Build hooks** → **Add build hook** (e.g. name: `scheduled-embed-refresh`)
+2. GitHub → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+   - Name: `NETLIFY_BUILD_HOOK_URL`
+   - Value: the build hook URL from step 1
+3. Confirm under **Actions** → **Scheduled Netlify deploy** (or wait for the next 1st / 15th / 29th)
+
+You can also run it manually: **Actions** → **Scheduled Netlify deploy** → **Run workflow**.
+
 For local development without the full download, use `npm run build:graph -- --mini`.
 
 ## How to play

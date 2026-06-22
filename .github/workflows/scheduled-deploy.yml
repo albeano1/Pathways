@@ -1,0 +1,30 @@
+# Refresh the 14-day puzzle embed + 60-day static daily files without code changes.
+# Runs on the 1st, 15th, and 29th at 14:00 UTC (~6–7 AM Pacific) so today's
+# Pacific puzzle date is correct when embed:daily runs during the Netlify build.
+#
+# Setup (one time):
+#   1. Netlify → Site configuration → Build & deploy → Build hooks → Add build hook
+#   2. GitHub → repo Settings → Secrets → Actions → NETLIFY_BUILD_HOOK_URL = hook URL
+name: Scheduled Netlify deploy
+
+on:
+  schedule:
+    - cron: "0 14 1 * *"
+    - cron: "0 14 15 * *"
+    - cron: "0 14 29 * *"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify build
+        env:
+          BUILD_HOOK_URL: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
+        run: |
+          if [ -z "$BUILD_HOOK_URL" ]; then
+            echo "::error::NETLIFY_BUILD_HOOK_URL secret is not set. See .github/workflows/scheduled-deploy.yml"
+            exit 1
+          fi
+          curl -fsS -X POST "$BUILD_HOOK_URL"
+          echo "Netlify build triggered."

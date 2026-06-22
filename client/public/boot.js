@@ -34,7 +34,9 @@
     var el = document.getElementById("pathways-daily-boot");
     if (!el || !el.textContent) return null;
     try {
-      var puzzle = JSON.parse(el.textContent);
+      var parsed = JSON.parse(el.textContent);
+      // Multi-day map keyed by date, or a legacy single puzzle object.
+      var puzzle = parsed && parsed.puzzleDate === undefined ? parsed[date] : parsed;
       return isValidPuzzle(puzzle, date) ? puzzle : null;
     } catch (error) {
       return null;
@@ -72,6 +74,17 @@
     fetch("/api/health" + query, { cache: "no-store" }).catch(function () {});
   }
 
+  function isValidStepContext(context, end, start) {
+    return (
+      context &&
+      context.end === end &&
+      context.lookups &&
+      context.path &&
+      context.path.length === 1 &&
+      context.path[0] === start
+    );
+  }
+
   function warmStepContext(end, start) {
     if (window.__pathwaysStepContextBoot) return;
 
@@ -81,19 +94,28 @@
       return;
     }
 
-    window.__pathwaysStepContextBoot = fetch(
-      "/api/step-context?end=" +
-        encodeURIComponent(end) +
-        "&path=" +
-        encodeURIComponent(start),
-      { cache: "no-store" }
-    )
-      .then(function (response) {
-        if (!response.ok) throw new Error("Step context failed");
-        return response.json();
+    var date = pacificDateKey();
+    // Prefer the precomputed static file (CDN, no cold function); fall back to the API.
+    window.__pathwaysStepContextBoot = fetchJson("/daily/" + date + ".step.json")
+      .then(function (context) {
+        if (isValidStepContext(context, end, start)) return context;
+        throw new Error("Static step context out of date");
       })
       .catch(function () {
-        return null;
+        return fetch(
+          "/api/step-context?end=" +
+            encodeURIComponent(end) +
+            "&path=" +
+            encodeURIComponent(start),
+          { cache: "no-store" }
+        )
+          .then(function (response) {
+            if (!response.ok) throw new Error("Step context failed");
+            return response.json();
+          })
+          .catch(function () {
+            return null;
+          });
       });
   }
 
@@ -106,27 +128,31 @@
     warmStepContext(embedded.end, embedded.start);
   }
 
-  window.__pathwaysPuzzleRefresh = fetchJson(
-    "/api/puzzle?date=" + encodeURIComponent(date)
-  )
-    .then(function (puzzle) {
+  // Reconcile against the precomputed static file first (CDN, no cold function);
+  // only wake the serverless API when the static window does not cover today.
+  function fetchPuzzleFromApi() {
+    return fetchJson("/api/puzzle?date=" + encodeURIComponent(date)).then(function (
+      puzzle
+    ) {
       if (isValidPuzzle(puzzle, date)) {
         storeBootPuzzle(date, puzzle);
       }
       return puzzle;
+    });
+  }
+
+  window.__pathwaysPuzzleRefresh = fetchJson("/daily/" + date + ".json")
+    .then(function (puzzle) {
+      if (!isValidPuzzle(puzzle, date)) throw new Error("Static puzzle out of date");
+      storeBootPuzzle(date, puzzle);
+      return puzzle;
     })
-    .catch(function () {});
+    .catch(function () {
+      return fetchPuzzleFromApi().catch(function () {});
+    });
 
   if (!window.__pathwaysPuzzlePrefetch) {
-    window.__pathwaysPuzzlePrefetch = fetchJson("/daily-puzzle.json")
-      .then(function (puzzle) {
-        if (!isValidPuzzle(puzzle, date)) throw new Error("Static puzzle out of date");
-        storeBootPuzzle(date, puzzle);
-        return puzzle;
-      })
-      .catch(function () {
-        return window.__pathwaysPuzzleRefresh;
-      });
+    window.__pathwaysPuzzlePrefetch = window.__pathwaysPuzzleRefresh;
   }
 
   window.__pathwaysPuzzlePrefetch

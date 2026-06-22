@@ -45,6 +45,14 @@ describe("GraphService plural variants", () => {
     expect(result.canonicalWord).toBe("line");
     expect(result.hopsToEnd).toBe(1);
   });
+
+  it("buildStepLookups keeps number distinct from numbers on the path", () => {
+    graph.warmEndDistances("fourteen");
+    const path = ["regulation", "rule", "numbers"];
+    const lookups = graph.buildStepLookups("fourteen", path, "numbers");
+    expect(lookups.number?.valid).toBe(true);
+    expect(lookups.number?.canonicalWord).toBeUndefined();
+  });
 });
 
 describe("GraphService path connection search", () => {

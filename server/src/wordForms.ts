@@ -1,12 +1,16 @@
 import {
+  areDistinctMorphPair,
   generatePlurals,
+  inputSurfaceForms,
   singularizeCandidates,
   IRREGULAR_PLURALS,
   IRREGULAR_SINGULARS,
 } from "../../shared/wordForms.js";
 
 export {
+  areDistinctMorphPair,
   generatePlurals,
+  inputSurfaceForms,
   singularizeCandidates,
   IRREGULAR_PLURALS,
   IRREGULAR_SINGULARS,

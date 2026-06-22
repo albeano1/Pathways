@@ -5,6 +5,7 @@ import {
 } from "../../shared/dailyPuzzle.js";
 import {
   difficultyFromHops,
+  isAcceptablePuzzlePath,
   isValidPuzzleHops,
   puzzleIdFromPair,
 } from "../../shared/puzzleRules.js";
@@ -31,6 +32,7 @@ export class PuzzleService {
   fromPair(start: string, end: string, graph: GraphService): Puzzle | null {
     const samplePath = graph.shortestPath(start, end);
     if (!samplePath) return null;
+    if (!isAcceptablePuzzlePath(samplePath)) return null;
 
     const optimalHops = samplePath.length - 1;
     if (!isValidPuzzleHops(optimalHops)) return null;

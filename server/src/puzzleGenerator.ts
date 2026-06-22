@@ -1,6 +1,7 @@
 import {
   DAILY_PUZZLE_MAX_ATTEMPTS,
   difficultyFromHops,
+  isAcceptablePuzzlePath,
   isValidPuzzleHops,
   matchesDifficulty,
   MAX_PUZZLE_HOPS,
@@ -120,6 +121,7 @@ export class PuzzleGenerator {
 
     const samplePath = this.graph.shortestPath(start, end);
     if (!samplePath) return null;
+    if (!isAcceptablePuzzlePath(samplePath)) return null;
 
     const optimalHops = samplePath.length - 1;
     if (!isValidPuzzleHops(optimalHops)) return null;

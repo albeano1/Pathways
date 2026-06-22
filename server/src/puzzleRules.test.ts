@@ -3,7 +3,10 @@ import {
   BLOCKED_PUZZLE_LEMMAS,
   canonicalPairKey,
   difficultyFromHops,
+  isAcceptablePuzzlePath,
   isEligiblePuzzleLemma,
+  isMorphologyOnlyStep,
+  isNumberPuzzleLemma,
   isValidPuzzleHops,
   matchesDifficulty,
   MAX_PUZZLE_HOPS,
@@ -69,5 +72,18 @@ describe("puzzleRules", () => {
   it("uses stable canonical pair keys and ids", () => {
     expect(canonicalPairKey("apple", "dark")).toBe(canonicalPairKey("dark", "apple"));
     expect(puzzleIdFromPair("apple", "dark")).toBe(puzzleIdFromPair("dark", "apple"));
+  });
+
+  it("blocks number lemmas as endpoints", () => {
+    expect(isNumberPuzzleLemma("fourteen")).toBe(true);
+    expect(isEligiblePuzzleLemma("fourteen", 20)).toBe(false);
+  });
+
+  it("rejects morphology-only and counting paths", () => {
+    expect(isMorphologyOnlyStep("numbers", "number")).toBe(true);
+    expect(isAcceptablePuzzlePath(["regulation", "rule", "dependency", "colony", "thirteen", "fourteen"])).toBe(
+      false
+    );
+    expect(isAcceptablePuzzlePath(["apple", "fruit", "tree", "forest"])).toBe(true);
   });
 });

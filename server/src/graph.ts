@@ -12,6 +12,7 @@ import {
 import { getDbPath } from "./bootstrapGraphDb.js";
 import {
   buildPluralAliasMap,
+  inputSurfaceForms,
   morphologicalVariants,
   resolveLemmaWithAliases,
 } from "./wordForms.js";
@@ -662,7 +663,8 @@ export class GraphService {
 
       lookups[candidate] = response;
       const resolvedTo = this.resolveLemma(candidate) ?? candidate;
-      for (const variant of this.morphVariants(resolvedTo)) {
+      const exists = (lemma: string) => this.lookupLemma(lemma) !== null;
+      for (const variant of inputSurfaceForms(resolvedTo, exists)) {
         const key = this.normalize(variant);
         lookups[key] = {
           ...response,

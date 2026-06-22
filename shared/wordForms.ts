@@ -96,6 +96,54 @@ export function generatePlurals(singular: string): string[] {
   return [...plurals];
 }
 
+/** True when two lemmas are singular/plural pairs and both exist as separate nodes. */
+export function areDistinctMorphPair(
+  a: string,
+  b: string,
+  exists: (lemma: string) => boolean
+): boolean {
+  if (a === b || !exists(a) || !exists(b)) return false;
+  if (singularizeCandidates(a).includes(b) || singularizeCandidates(b).includes(a)) {
+    return true;
+  }
+  if (generatePlurals(a).includes(b) || generatePlurals(b).includes(a)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Surface forms for lookup aliasing when the user types a guess.
+ * Unlike morphologicalVariants, does not cross-alias distinct graph nodes
+ * that happen to be singular/plural pairs (e.g. number vs numbers).
+ */
+export function inputSurfaceForms(
+  lemma: string,
+  exists: (lemma: string) => boolean
+): string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  const add = (candidate: string) => {
+    if (!exists(candidate) || seen.has(candidate)) return;
+    seen.add(candidate);
+    ordered.push(candidate);
+  };
+
+  add(lemma);
+
+  for (const singular of singularizeCandidates(lemma)) {
+    if (areDistinctMorphPair(lemma, singular, exists)) continue;
+    add(singular);
+  }
+
+  for (const plural of generatePlurals(lemma)) {
+    if (areDistinctMorphPair(lemma, plural, exists)) continue;
+    add(plural);
+  }
+
+  return ordered;
+}
+
 /** Candidate singular forms for user input that may be plural. */
 export function singularizeCandidates(word: string): string[] {
   const candidates = new Set<string>();

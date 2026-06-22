@@ -1,4 +1,5 @@
 import type { Difficulty } from "./types.js";
+import { generatePlurals, singularizeCandidates } from "./wordForms.js";
 
 /** Shortest-path hop count bounds for a valid puzzle pair. */
 export const MIN_PUZZLE_HOPS = 3;
@@ -34,6 +35,117 @@ export const BLOCKED_PUZZLE_LEMMAS = new Set([
   "group",
 ]);
 
+/** Cardinal/ordinal number words — poor puzzle endpoints and path steps. */
+export const NUMBER_PUZZLE_LEMMAS = new Set([
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+  "twenty",
+  "thirty",
+  "forty",
+  "fifty",
+  "sixty",
+  "seventy",
+  "eighty",
+  "ninety",
+  "hundred",
+  "thousand",
+  "million",
+  "billion",
+  "dozen",
+  "pair",
+  "double",
+  "triple",
+  "single",
+  "half",
+  "quarter",
+  "first",
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+  "sixth",
+  "seventh",
+  "eighth",
+  "ninth",
+  "tenth",
+  "eleventh",
+  "twelfth",
+  "thirteenth",
+  "fourteenth",
+  "fifteenth",
+  "sixteenth",
+  "seventeenth",
+  "eighteenth",
+  "nineteenth",
+  "twentieth",
+  "number",
+  "numbers",
+  "digit",
+  "digits",
+  "numeral",
+  "numerals",
+  "integer",
+  "integers",
+  "count",
+  "counting",
+]);
+
+export function isNumberPuzzleLemma(lemma: string): boolean {
+  return NUMBER_PUZZLE_LEMMAS.has(lemma);
+}
+
+export function isMorphologyOnlyStep(from: string, to: string): boolean {
+  if (from === to) return true;
+  if (singularizeCandidates(from).includes(to) || singularizeCandidates(to).includes(from)) {
+    return true;
+  }
+  if (generatePlurals(from).includes(to) || generatePlurals(to).includes(from)) {
+    return true;
+  }
+  return false;
+}
+
+/** Reject paths that rely on counting up or redundant singular/plural hops. */
+export function isAcceptablePuzzlePath(path: string[]): boolean {
+  if (path.length < 2) return true;
+
+  if (isNumberPuzzleLemma(path[0]!) || isNumberPuzzleLemma(path[path.length - 1]!)) {
+    return false;
+  }
+
+  let numberWordCount = 0;
+  for (const lemma of path) {
+    if (isNumberPuzzleLemma(lemma)) numberWordCount++;
+  }
+  if (numberWordCount >= 2) return false;
+
+  for (let index = 1; index < path.length; index++) {
+    const prev = path[index - 1]!;
+    const next = path[index]!;
+    if (isMorphologyOnlyStep(prev, next)) return false;
+  }
+
+  return true;
+}
+
 export function difficultyFromHops(hops: number): Difficulty {
   if (hops <= 3) return "easy";
   if (hops <= 4) return "medium";
@@ -54,6 +166,7 @@ export function isEligiblePuzzleLemma(lemma: string, degree: number): boolean {
   if (lemma.length < MIN_LEMMA_LENGTH || lemma.length > MAX_LEMMA_LENGTH) return false;
   if (!/^[a-z]+$/.test(lemma)) return false;
   if (BLOCKED_PUZZLE_LEMMAS.has(lemma)) return false;
+  if (isNumberPuzzleLemma(lemma)) return false;
   return true;
 }
 

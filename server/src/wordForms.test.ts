@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPluralAliasMap,
   generatePlurals,
+  inputSurfaceForms,
   IRREGULAR_PLURALS,
   morphologicalVariants,
   resolveLemmaWithAliases,
@@ -53,6 +54,19 @@ describe("morphologicalVariants", () => {
     const lemmas = new Set(["line", "lines", "sentence"]);
     const exists = (lemma: string) => lemmas.has(lemma);
     expect(morphologicalVariants("lines", exists)).toEqual(["lines", "line"]);
+  });
+});
+
+describe("inputSurfaceForms", () => {
+  it("does not cross-alias distinct singular/plural graph nodes", () => {
+    const exists = (lemma: string) => ["number", "numbers"].includes(lemma);
+    expect(inputSurfaceForms("number", exists)).toEqual(["number"]);
+    expect(inputSurfaceForms("numbers", exists)).toEqual(["numbers"]);
+  });
+
+  it("still aliases when only the singular lemma is in the graph", () => {
+    const exists = (lemma: string) => lemma === "line";
+    expect(inputSurfaceForms("line", exists)).toEqual(["line"]);
   });
 });
 

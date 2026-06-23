@@ -63,7 +63,8 @@ export function GraphView({
   const pathTreeRef = useRef<HTMLDivElement>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
   const internalGoalBarRef = useRef<HTMLDivElement>(null);
-  const goalBarRef = externalGoalBarRef ?? internalGoalBarRef;
+  const goalBarRef =
+    hideGoalBar && externalGoalBarRef ? externalGoalBarRef : internalGoalBarRef;
   const persistedLayoutKey = useRef("");
   const isMobile = useMediaQuery("(max-width: 720px)");
 
@@ -84,6 +85,25 @@ export function GraphView({
         : new Set<string>(),
     [scrollableGraph, graphNodes, graphEdges, start, currentNodeId]
   );
+
+  const goalParentNodeId = useMemo(() => {
+    if (!won) return null;
+    const endNode = graphNodes.find((node) => node.word === end);
+    if (!endNode) return null;
+
+    const parentEdges = graphEdges.filter(
+      (edge) => edge.toNodeId === endNode.id && !edge.rejected
+    );
+    if (parentEdges.length === 0) return null;
+    if (parentEdges.length === 1) return parentEdges[0]!.fromNodeId;
+
+    const nodeById = new Map(graphNodes.map((node) => [node.id, node]));
+    return parentEdges.reduce((best, edge) => {
+      const bestParent = nodeById.get(best.fromNodeId);
+      const edgeParent = nodeById.get(edge.fromNodeId);
+      return (edgeParent?.createdAt ?? 0) > (bestParent?.createdAt ?? 0) ? edge : best;
+    }).fromNodeId;
+  }, [won, graphNodes, graphEdges, end]);
 
   const pinned = useMemo(() => {
     const map = new Map<string, PinnedPosition>();
@@ -231,8 +251,9 @@ export function GraphView({
       {won && (
         <TrunkGoalLink
           containerRef={pathTreeRef}
+          treeAreaRef={treeAreaRef}
           goalBarRef={goalBarRef}
-          layoutHeight={layout.height}
+          goalParentNodeId={goalParentNodeId}
         />
       )}
       <div className="path-tree__tree-area" ref={treeAreaRef}>

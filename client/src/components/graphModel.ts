@@ -34,10 +34,11 @@ export function buildRenderGraph(input: {
     input;
   const won = complete === true || nodes.some((node) => node.word === end);
 
-  const renderNodes: RenderGraphNode[] = nodes.map((node) => {
+  const renderNodes: RenderGraphNode[] = nodes
+    .filter((node) => !(won && node.word === end))
+    .map((node) => {
     let variant: PathNodeVariant = "confirmed";
     if (node.word === start) variant = "start";
-    else if (won && node.word === end) variant = "win-tip";
     else if (node.id === currentNodeId && !won) variant = "current";
 
     return {
@@ -49,7 +50,13 @@ export function buildRenderGraph(input: {
     };
   });
 
-  const renderEdges: RenderGraphEdge[] = edges.map((edge) => ({
+  const endNodeIds = new Set(
+    won ? nodes.filter((node) => node.word === end).map((node) => node.id) : []
+  );
+
+  const renderEdges: RenderGraphEdge[] = edges
+    .filter((edge) => !endNodeIds.has(edge.toNodeId))
+    .map((edge) => ({
     id: edge.id,
     fromId: edge.fromNodeId,
     toId: edge.toNodeId,

@@ -159,7 +159,7 @@ export function GameBoard() {
               closeCount={isMobile ? undefined : closeCount}
               hideGoalBar={isMobile}
               hideLegendChrome={isMobile && isPortrait}
-              externalGoalBarRef={mobileGoalBarRef}
+              externalGoalBarRef={isMobile ? mobileGoalBarRef : undefined}
               includeRejected={!isMobile || showRejected}
               showPortraitGuide={!isMobile}
               onPersistLayout={persistLayout}

@@ -504,7 +504,7 @@ button {
 }
 
 .path-tree__trunk-goal-link {
-  z-index: 1;
+  z-index: 3;
 }
 
 .play-stage--boot {

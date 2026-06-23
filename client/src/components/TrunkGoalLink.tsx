@@ -2,8 +2,9 @@ import { useLayoutEffect, useState } from "react";
 
 interface TrunkGoalLinkProps {
   containerRef: React.RefObject<HTMLElement | null>;
+  treeAreaRef: React.RefObject<HTMLElement | null>;
   goalBarRef: React.RefObject<HTMLElement | null>;
-  layoutHeight: number;
+  goalParentNodeId: string | null;
 }
 
 interface LinkLine {
@@ -22,11 +23,12 @@ function sameLine(a: LinkLine | null, b: LinkLine | null): boolean {
   );
 }
 
-/** Connect the win-tip node to the goal bar after the player types the goal word. */
+/** Connect the last graph node to the goal bar after the player reaches the goal. */
 export function TrunkGoalLink({
   containerRef,
+  treeAreaRef,
   goalBarRef,
-  layoutHeight,
+  goalParentNodeId,
 }: TrunkGoalLinkProps) {
   const [line, setLine] = useState<LinkLine | null>(null);
 
@@ -36,20 +38,22 @@ export function TrunkGoalLink({
     const measure = () => {
       const container = containerRef.current;
       const goalBar = goalBarRef.current;
-      const tipNode = container?.querySelector(".path-node--win-tip");
+      const parentNode = goalParentNodeId
+        ? container?.querySelector(`[data-node-id="${goalParentNodeId}"] .path-node__word`)
+        : null;
       const goalWord = goalBar?.querySelector(".goal-bar__word");
-      if (!container || !goalWord || !tipNode) {
+      if (!container || !goalWord || !parentNode) {
         setLine((prev) => (prev === null ? prev : null));
         return;
       }
 
       const containerRect = container.getBoundingClientRect();
-      const tipRect = tipNode.getBoundingClientRect();
+      const parentRect = parentNode.getBoundingClientRect();
       const goalRect = goalWord.getBoundingClientRect();
 
       const next: LinkLine = {
-        x: tipRect.left + tipRect.width / 2 - containerRect.left,
-        y1: tipRect.bottom - containerRect.top,
+        x: parentRect.left + parentRect.width / 2 - containerRect.left,
+        y1: parentRect.bottom - containerRect.top,
         y2: goalRect.top - containerRect.top,
       };
 
@@ -65,6 +69,7 @@ export function TrunkGoalLink({
 
     const observer = new ResizeObserver(scheduleMeasure);
     if (containerRef.current) observer.observe(containerRef.current);
+    if (treeAreaRef.current) observer.observe(treeAreaRef.current);
     if (goalBarRef.current) observer.observe(goalBarRef.current);
 
     window.addEventListener("resize", scheduleMeasure);
@@ -73,7 +78,7 @@ export function TrunkGoalLink({
       observer.disconnect();
       window.removeEventListener("resize", scheduleMeasure);
     };
-  }, [containerRef, goalBarRef, layoutHeight]);
+  }, [containerRef, treeAreaRef, goalBarRef, goalParentNodeId]);
 
   if (!line || line.y2 <= line.y1) return null;
 

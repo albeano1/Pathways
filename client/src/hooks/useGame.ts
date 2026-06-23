@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  buildGraphIndex,
+  buildExploreFromGraph,
   closestHopsInGraph,
   createStartNode,
   fetchPuzzle,
-  hasGraphEdgeInIndex,
+  hasGraphEdge,
   nextEdgeId,
   nextNodeId,
-  nodeByWordInIndex,
+  nodeByWord,
   resolveParentNodeId,
   scorePath,
   shortestWinPath,
@@ -136,11 +136,6 @@ export function useGame() {
   const currentNode = useMemo(
     () => graphNodes.find((node) => node.id === currentNodeId),
     [graphNodes, currentNodeId]
-  );
-
-  const graphIndex = useMemo(
-    () => buildGraphIndex(graphNodes, graphEdges),
-    [graphNodes, graphEdges]
   );
 
   const currentWord = currentNode?.word ?? puzzle?.start ?? "";
@@ -361,7 +356,7 @@ export function useGame() {
   useEffect(() => {
     if (!puzzle || status !== "playing") return;
 
-    const { path: explorePath } = graphIndex;
+    const { path: explorePath } = buildExploreFromGraph(graphNodes);
     const graphWords = graphNodes.map((node) => node.word);
     prefetchWordInfo([
       ...explorePath,
@@ -377,7 +372,7 @@ export function useGame() {
         ...getCachedLookupWords(puzzle.end, explorePath, currentWord),
       ]);
     });
-  }, [puzzle, graphNodes, graphIndex.explorePath, status, currentWord]);
+  }, [puzzle, graphNodes, status, currentWord]);
 
   useEffect(() => {
     if (!hydrated.current || !puzzle || getDebugPuzzleFromUrl()) return;
@@ -507,7 +502,7 @@ export function useGame() {
 
       submitLock.current = true;
       try {
-        const { explorePath, exploreKeys } = graphIndex;
+        const { path: explorePath, keys: exploreKeys } = buildExploreFromGraph(graphNodes);
         const activeWord = currentWord;
 
         let result = resolveCachedStep(puzzle.end, explorePath, trimmed, activeWord);
@@ -567,14 +562,14 @@ export function useGame() {
 
         const canonical = result.canonicalWord ?? trimmed;
         const childHops = result.hopsToEnd ?? connections[0]!.hopsToEnd;
-        let targetNode = nodeByWordInIndex(graphIndex, canonical);
+        let targetNode = nodeByWord(graphNodes, canonical);
         const targetId = targetNode?.id ?? nextNodeId();
         const newEdges: GraphEdge[] = [];
 
         for (const connection of connections) {
           const parentId = resolveParentNodeId(connection, exploreKeys);
           if (!parentId) continue;
-          if (hasGraphEdgeInIndex(graphIndex, parentId, targetId)) continue;
+          if (hasGraphEdge(graphEdges, parentId, targetId)) continue;
 
           newEdges.push({
             id: nextEdgeId(),
@@ -635,7 +630,6 @@ export function useGame() {
       currentWord,
       finalizeScore,
       graphEdges,
-      graphIndex,
       graphNodes,
       notePathArrival,
       puzzle,

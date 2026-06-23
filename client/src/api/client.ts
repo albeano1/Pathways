@@ -162,16 +162,13 @@ export type {
 
 export {
   buildExploreFromGraph,
-  buildGraphIndex,
   closestHopsInGraph,
   createStartNode,
   hasGraphEdge,
-  hasGraphEdgeInIndex,
   migrateTreeToGraph,
   nextEdgeId,
   nextNodeId,
   nodeByWord,
-  nodeByWordInIndex,
   resolveParentNodeId,
   shortestWinPath,
   syncGraphCounters,

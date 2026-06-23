@@ -1,6 +1,26 @@
 import type { GraphEdge, GraphNode } from "../../../shared/types";
-import type { GraphIndex } from "./graphUtils";
-import { buildGraphIndex } from "./graphUtils";
+
+function buildParentsByChild(edges: GraphEdge[]): Map<string, string[]> {
+  const parentsByChild = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (edge.rejected) continue;
+    const parents = parentsByChild.get(edge.toNodeId) ?? [];
+    parents.push(edge.fromNodeId);
+    parentsByChild.set(edge.toNodeId, parents);
+  }
+  return parentsByChild;
+}
+
+function buildChildrenByParent(edges: GraphEdge[]): Map<string, string[]> {
+  const childrenByParent = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (edge.rejected) continue;
+    const children = childrenByParent.get(edge.fromNodeId) ?? [];
+    children.push(edge.toNodeId);
+    childrenByParent.set(edge.fromNodeId, children);
+  }
+  return childrenByParent;
+}
 
 function pickDefaultParent(
   parents: string[],
@@ -26,27 +46,6 @@ export function pathsMatchingPrefix(paths: string[][], prefix: string[]): string
     (path) =>
       path.length >= prefix.length && prefix.every((word, index) => path[index] === word)
   );
-}
-
-export interface PathGraphContext {
-  index: GraphIndex;
-  startNodeId: string;
-  reachabilityCache: Map<string, boolean>;
-}
-
-export function buildPathGraphContext(
-  nodes: GraphNode[],
-  edges: GraphEdge[],
-  startWord: string
-): PathGraphContext | null {
-  const startNodeId = nodes.find((node) => node.word === startWord)?.id;
-  if (!startNodeId) return null;
-
-  return {
-    index: buildGraphIndex(nodes, edges),
-    startNodeId,
-    reachabilityCache: new Map(),
-  };
 }
 
 function canReachNode(
@@ -80,21 +79,26 @@ function canReachNode(
   return false;
 }
 
+/** Node ids at the end of a word prefix from start (handles reconverging branches). */
 function resolveNodeIdsAtPrefix(
-  context: PathGraphContext,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  startWord: string,
   prefix: string[]
 ): string[] {
-  const { index, startNodeId } = context;
-  if (prefix.length === 0) return [];
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const startNode = nodes.find((node) => node.word === startWord);
+  if (!startNode || prefix.length === 0) return [];
 
-  let currentIds = [startNodeId];
+  const childrenByParent = buildChildrenByParent(edges);
+  let currentIds = [startNode.id];
 
-  for (let indexOffset = 1; indexOffset < prefix.length; indexOffset++) {
-    const word = prefix[indexOffset]!;
+  for (let index = 1; index < prefix.length; index++) {
+    const word = prefix[index]!;
     const nextIds: string[] = [];
     for (const parentId of currentIds) {
-      for (const childId of index.childrenByParent.get(parentId) ?? []) {
-        const child = index.nodeById.get(childId);
+      for (const childId of childrenByParent.get(parentId) ?? []) {
+        const child = nodeById.get(childId);
         if (child?.word === word) {
           nextIds.push(childId);
         }
@@ -109,27 +113,24 @@ function resolveNodeIdsAtPrefix(
 
 /** Distinct next words from this prefix that can still reach the current node. */
 export function forkNextOptions(
-  context: PathGraphContext,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  startWord: string,
   targetNodeId: string,
   prefix: string[]
 ): string[] {
-  const { index, reachabilityCache } = context;
-  const prefixNodeIds = resolveNodeIdsAtPrefix(context, prefix);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const childrenByParent = buildChildrenByParent(edges);
+  const reachabilityCache = new Map<string, boolean>();
+  const prefixNodeIds = resolveNodeIdsAtPrefix(nodes, edges, startWord, prefix);
   const nextWords = new Set<string>();
 
   for (const parentId of prefixNodeIds) {
-    for (const childId of index.childrenByParent.get(parentId) ?? []) {
-      if (
-        !canReachNode(
-          childId,
-          targetNodeId,
-          index.childrenByParent,
-          reachabilityCache
-        )
-      ) {
+    for (const childId of childrenByParent.get(parentId) ?? []) {
+      if (!canReachNode(childId, targetNodeId, childrenByParent, reachabilityCache)) {
         continue;
       }
-      const child = index.nodeById.get(childId);
+      const child = nodeById.get(childId);
       if (child) nextWords.add(child.word);
     }
   }
@@ -138,14 +139,16 @@ export function forkNextOptions(
 }
 
 export function defaultForkChoices(
-  context: PathGraphContext,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  startWord: string,
   targetNodeId: string,
   defaultPath: string[]
 ): Record<string, number> {
   const choices: Record<string, number> = {};
   for (let index = 0; index < defaultPath.length - 1; index++) {
     const prefix = defaultPath.slice(0, index + 1);
-    const options = forkNextOptions(context, targetNodeId, prefix);
+    const options = forkNextOptions(nodes, edges, startWord, targetNodeId, prefix);
     if (options.length <= 1) continue;
     const nextWord = defaultPath[index + 1];
     const optionIndex = nextWord ? options.indexOf(nextWord) : -1;
@@ -156,16 +159,19 @@ export function defaultForkChoices(
 
 /** Walk from start using per-fork choices until the route reaches the current node. */
 export function buildPathFromForkChoices(
-  context: PathGraphContext,
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  forkChoices: Record<string, number>,
   startWord: string,
-  targetNodeId: string,
-  forkChoices: Record<string, number>
+  targetNodeId: string
 ): string[] {
-  if (context.startNodeId === targetNodeId) return [startWord];
+  const startNode = nodes.find((node) => node.word === startWord);
+  if (!startNode) return [startWord];
+  if (startNode.id === targetNodeId) return [startWord];
 
   const result: string[] = [startWord];
   while (true) {
-    const options = forkNextOptions(context, targetNodeId, result);
+    const options = forkNextOptions(nodes, edges, startWord, targetNodeId, result);
     if (options.length === 0) break;
 
     const key = pathPrefixKey(result);
@@ -173,7 +179,7 @@ export function buildPathFromForkChoices(
     const nextWord = options[Math.min(choiceIndex, options.length - 1)]!;
     result.push(nextWord);
 
-    const atPrefixIds = resolveNodeIdsAtPrefix(context, result);
+    const atPrefixIds = resolveNodeIdsAtPrefix(nodes, edges, startWord, result);
     if (atPrefixIds.includes(targetNodeId)) break;
   }
 
@@ -192,16 +198,16 @@ export function enumeratePathsToNode(
   targetNodeId: string,
   maxPaths = 16
 ): string[][] {
-  const context = buildPathGraphContext(nodes, edges, startWord);
-  if (!context) return [];
-  if (targetNodeId === context.startNodeId) return [[startWord]];
+  const startNode = nodes.find((node) => node.word === startWord);
+  if (!startNode) return [];
+  if (targetNodeId === startNode.id) return [[startWord]];
 
-  const { index } = context;
+  const childrenByParent = buildChildrenByParent(edges);
   const paths: string[][] = [];
 
   const visit = (nodeId: string, visited: Set<string>, chain: string[]) => {
     if (paths.length >= maxPaths) return;
-    const node = index.nodeById.get(nodeId);
+    const node = nodes.find((entry) => entry.id === nodeId);
     if (!node || visited.has(nodeId)) return;
 
     const nextChain = [...chain, node.word];
@@ -212,12 +218,12 @@ export function enumeratePathsToNode(
 
     const nextVisited = new Set(visited);
     nextVisited.add(nodeId);
-    for (const childId of index.childrenByParent.get(nodeId) ?? []) {
+    for (const childId of childrenByParent.get(nodeId) ?? []) {
       visit(childId, nextVisited, nextChain);
     }
   };
 
-  visit(context.startNodeId, new Set(), []);
+  visit(startNode.id, new Set(), []);
 
   const defaultPath = buildActivePath(nodes, edges, startWord, targetNodeId);
   paths.sort((left, right) => {
@@ -238,24 +244,26 @@ export function buildActivePath(
   startWord: string,
   currentNodeId: string
 ): string[] {
-  const index = buildGraphIndex(nodes, edges);
-  const startNodeId = index.nodeIdByWord.get(startWord);
-  if (!startNodeId) return [];
-  if (currentNodeId === startNodeId) return [startWord];
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const startNode = nodes.find((node) => node.word === startWord);
+  if (!startNode) return [];
+  if (currentNodeId === startNode.id) return [startWord];
+
+  const parentsByChild = buildParentsByChild(edges);
 
   const path: string[] = [];
   let current: string | undefined = currentNodeId;
 
   while (current) {
-    const node = index.nodeById.get(current);
+    const node = nodeById.get(current);
     if (!node) break;
     path.unshift(node.word);
     if (node.word === startWord) break;
 
-    const parents = index.parentsByChild.get(current) ?? [];
+    const parents = parentsByChild.get(current) ?? [];
     if (parents.length === 0) break;
 
-    current = pickDefaultParent(parents, index.nodeById);
+    current = pickDefaultParent(parents, nodeById);
   }
 
   return path;
@@ -268,20 +276,22 @@ export function activePathNodeIds(
   startWord: string,
   currentNodeId: string
 ): Set<string> {
-  const index = buildGraphIndex(nodes, edges);
-  const startNodeId = index.nodeIdByWord.get(startWord);
-  if (!startNodeId) return new Set();
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const startNode = nodes.find((node) => node.word === startWord);
+  if (!startNode) return new Set();
+
+  const parentsByChild = buildParentsByChild(edges);
 
   const ids = new Set<string>();
   let current: string | undefined = currentNodeId;
 
   while (current) {
     ids.add(current);
-    const node = index.nodeById.get(current);
+    const node = nodeById.get(current);
     if (!node || node.word === startWord) break;
-    const parents = index.parentsByChild.get(current) ?? [];
+    const parents = parentsByChild.get(current) ?? [];
     if (parents.length === 0) break;
-    current = pickDefaultParent(parents, index.nodeById);
+    current = pickDefaultParent(parents, nodeById);
   }
 
   return ids;

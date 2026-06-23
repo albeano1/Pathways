@@ -3,7 +3,6 @@ import type { GraphEdge, GraphNode } from "../../../shared/types";
 import {
   buildActivePath,
   buildPathFromForkChoices,
-  buildPathGraphContext,
   defaultForkChoices,
   forkNextOptions,
   pathPrefixKey,
@@ -30,22 +29,17 @@ export function PathView({
   onWordSelect,
 }: PathViewProps) {
   const won = complete === true || nodes.some((node) => node.word === end);
-  const pathContext = useMemo(
-    () => buildPathGraphContext(nodes, edges, start),
-    [nodes, edges, start]
-  );
   const [forkChoices, setForkChoices] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!pathContext) return;
     const defaultPath = buildActivePath(nodes, edges, start, currentNodeId);
-    setForkChoices(defaultForkChoices(pathContext, currentNodeId, defaultPath));
-  }, [currentNodeId, nodes, edges, start, pathContext]);
+    setForkChoices(defaultForkChoices(nodes, edges, start, currentNodeId, defaultPath));
+  }, [currentNodeId, nodes, edges, start]);
 
-  const path = useMemo(() => {
-    if (!pathContext) return [start];
-    return buildPathFromForkChoices(pathContext, start, currentNodeId, forkChoices);
-  }, [pathContext, forkChoices, start, currentNodeId]);
+  const path = useMemo(
+    () => buildPathFromForkChoices(nodes, edges, forkChoices, start, currentNodeId),
+    [nodes, edges, forkChoices, start, currentNodeId]
+  );
 
   const handleForkChange = useCallback((prefix: string[], optionIndex: number) => {
     const key = pathPrefixKey(prefix);
@@ -60,22 +54,12 @@ export function PathView({
     });
   }, []);
 
-  if (!pathContext) {
-    return (
-      <div className="path-view">
-        <div className="path-view__chain">
-          <PathNode word={start} variant="start" onSelect={onWordSelect} />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="path-view">
       <div className="path-view__chain">
         {path.map((word, index) => {
           const prefix = path.slice(0, index + 1);
-          const branchOptions = forkNextOptions(pathContext, currentNodeId, prefix);
+          const branchOptions = forkNextOptions(nodes, edges, start, currentNodeId, prefix);
           const hasBranch = branchOptions.length > 1;
           const forkKey = pathPrefixKey(prefix);
           const selectedBranch = forkChoices[forkKey] ?? 0;
@@ -83,10 +67,7 @@ export function PathView({
           let variant: PathNodeVariant = "confirmed";
           if (word === start) variant = "start";
           else if (won && word === end) variant = "win-tip";
-          else if (
-            !won &&
-            pathContext.index.nodeIdByWord.get(word) === currentNodeId
-          ) {
+          else if (!won && nodes.find((node) => node.word === word)?.id === currentNodeId) {
             variant = "current";
           }
 

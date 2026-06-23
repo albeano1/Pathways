@@ -20,12 +20,6 @@ import {
 export class GraphService {
   private db: Database.Database;
   private wordIdCache = new Map<string, number>();
-  private lemmaByIdCache = new Map<number, string>();
-  private resolveLemmaCache = new Map<string, string | null>();
-  private neighborIdsCache = new Map<number, number[]>();
-  private neighborsCache = new Map<number, Array<{ word: string; relation: string }>>();
-  private morphVariantsCache = new Map<string, string[]>();
-  private edgeCache = new Map<string, { valid: boolean; relation?: string }>();
   private hopCache = new Map<string, number | null>();
   /** Hop distance to a puzzle end, keyed by resolved end lemma. */
   private endDistanceMaps = new Map<string, Map<number, number>>();
@@ -55,12 +49,6 @@ export class GraphService {
     const service = Object.create(GraphService.prototype) as GraphService;
     service.db = db;
     service.wordIdCache = new Map();
-    service.lemmaByIdCache = new Map();
-    service.resolveLemmaCache = new Map();
-    service.neighborIdsCache = new Map();
-    service.neighborsCache = new Map();
-    service.morphVariantsCache = new Map();
-    service.edgeCache = new Map();
     service.hopCache = new Map();
     service.endDistanceMaps = new Map();
     service.initStatements();
@@ -156,32 +144,15 @@ export class GraphService {
   }
 
   private getNeighborIds(wordId: number): number[] {
-    const cached = this.neighborIdsCache.get(wordId);
-    if (cached !== undefined) return cached;
-
     const rows = this.neighborIdStmt.all(wordId, wordId, wordId) as Array<{
       neighbor_id: number;
     }>;
-    const neighborIds = rows.map((row) => row.neighbor_id);
-    this.neighborIdsCache.set(wordId, neighborIds);
-    return neighborIds;
+    return rows.map((row) => row.neighbor_id);
   }
 
   private lemmaForId(wordId: number): string | null {
-    const cached = this.lemmaByIdCache.get(wordId);
-    if (cached !== undefined) return cached;
-
     const row = this.lemmaByIdStmt.get(wordId) as { lemma: string } | undefined;
-    const lemma = row?.lemma ?? null;
-    if (lemma !== null) {
-      this.lemmaByIdCache.set(wordId, lemma);
-      this.wordIdCache.set(lemma, wordId);
-    }
-    return lemma;
-  }
-
-  private edgeCacheKey(fromId: number, toId: number): string {
-    return fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
+    return row?.lemma ?? null;
   }
 
   private bfsHopCount(startLemma: string, endLemma: string): number | null {
@@ -301,18 +272,12 @@ export class GraphService {
   }
 
   resolveLemma(word: string): string | null {
-    const normalized = this.normalize(word);
-    const cached = this.resolveLemmaCache.get(normalized);
-    if (cached !== undefined) return cached;
-
-    const resolved = resolveLemmaWithAliases(
+    return resolveLemmaWithAliases(
       word,
       this.lemmaSet,
       this.aliasMap,
       (lemma) => this.lookupLemma(lemma) !== null
     );
-    this.resolveLemmaCache.set(normalized, resolved);
-    return resolved;
   }
 
   getWordId(lemma: string): number | null {
@@ -337,9 +302,6 @@ export class GraphService {
     const id = this.getWordId(lemma);
     if (id === null) return [];
 
-    const cached = this.neighborsCache.get(id);
-    if (cached !== undefined) return cached;
-
     const rows = this.db
       .prepare(
         `SELECT w.lemma, e.relation
@@ -351,9 +313,7 @@ export class GraphService {
       )
       .all(id, id, id) as Array<{ lemma: string; relation: string }>;
 
-    const neighbors = rows.map((row) => ({ word: row.lemma, relation: row.relation }));
-    this.neighborsCache.set(id, neighbors);
-    return neighbors;
+    return rows.map((row) => ({ word: row.lemma, relation: row.relation }));
   }
 
   hasEdge(from: string, to: string): { valid: boolean; relation?: string } {
@@ -361,17 +321,12 @@ export class GraphService {
     const toId = this.getWordId(to);
     if (fromId === null || toId === null) return { valid: false };
 
-    const cacheKey = this.edgeCacheKey(fromId, toId);
-    const cached = this.edgeCache.get(cacheKey);
-    if (cached !== undefined) return cached;
-
     const row = this.edgeBetweenStmt.get(fromId, toId, toId, fromId) as
       | { relation: string }
       | undefined;
 
-    const result = row ? { valid: true as const, relation: row.relation } : { valid: false as const };
-    this.edgeCache.set(cacheKey, result);
-    return result;
+    if (!row) return { valid: false };
+    return { valid: true, relation: row.relation };
   }
 
   /** Match edges allowing singular/plural surface forms on either endpoint. */
@@ -516,12 +471,7 @@ export class GraphService {
   }
 
   private morphVariants(lemma: string): string[] {
-    const cached = this.morphVariantsCache.get(lemma);
-    if (cached !== undefined) return cached;
-
-    const variants = morphologicalVariants(lemma, (candidate) => this.lookupLemma(candidate) !== null);
-    this.morphVariantsCache.set(lemma, variants);
-    return variants;
+    return morphologicalVariants(lemma, (candidate) => this.lookupLemma(candidate) !== null);
   }
 
   /**

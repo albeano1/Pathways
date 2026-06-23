@@ -4,12 +4,13 @@ import {
   isAcceptablePuzzlePath,
   isValidPuzzleHops,
   matchesDifficulty,
-  MAX_PUZZLE_HOPS,
-  MIN_PUZZLE_HOPS,
   pickDailyTargetHops,
   pickRandomTargetHops,
+  puzzleHopBoundsForDate,
   puzzleIdFromPair,
   RANDOM_PUZZLE_MAX_ATTEMPTS,
+  STANDARD_PUZZLE_BOUNDS,
+  type PuzzleHopBounds,
 } from "../../shared/puzzleRules.js";
 import { hashString, mulberry32 } from "../../shared/dailyPuzzle.js";
 import type { Difficulty, Puzzle } from "../../shared/types.js";
@@ -41,15 +42,18 @@ export class PuzzleGenerator {
       ...options,
       exclude,
       maxAttempts,
+      bounds: STANDARD_PUZZLE_BOUNDS,
     });
   }
 
   async generateDaily(puzzleDate: string, nextPuzzleAt: string): Promise<Puzzle> {
+    const bounds = puzzleHopBoundsForDate(puzzleDate);
     const rng = mulberry32(hashString(puzzleDate));
-    const targetHops = pickDailyTargetHops(rng);
+    const targetHops = pickDailyTargetHops(rng, bounds);
     const puzzle = await this.generateFromRng(rng, {
       maxAttempts: DAILY_PUZZLE_MAX_ATTEMPTS,
       targetHops,
+      bounds,
     });
 
     return { ...puzzle, puzzleDate, nextPuzzleAt };
@@ -62,12 +66,14 @@ export class PuzzleGenerator {
       exclude?: Set<string>;
       maxAttempts?: number;
       targetHops?: number;
+      bounds?: PuzzleHopBounds;
     }
   ): Promise<Omit<Puzzle, "puzzleDate" | "nextPuzzleAt">> {
     const exclude = options.exclude ?? new Set<string>();
     const maxAttempts = options.maxAttempts ?? RANDOM_PUZZLE_MAX_ATTEMPTS;
+    const bounds = options.bounds ?? STANDARD_PUZZLE_BOUNDS;
     const preferredHops =
-      options.targetHops ?? pickRandomTargetHops(rng, options.difficulty);
+      options.targetHops ?? pickRandomTargetHops(rng, options.difficulty, bounds);
     const startCount = this.graph.getEligibleLemmaCount();
 
     if (startCount === 0) {
@@ -79,13 +85,13 @@ export class PuzzleGenerator {
       const start = this.graph.getEligibleLemmaAt(startOffset);
       if (!start) continue;
 
-      const hopCandidates = this.hopCandidatesForAttempt(preferredHops, attempt);
+      const hopCandidates = this.hopCandidatesForAttempt(preferredHops, attempt, bounds);
       for (const hops of hopCandidates) {
         const ends = this.graph.getReachableLemmasAtHopDistance(start, hops);
         if (ends.length === 0) continue;
 
         const end = ends[Math.floor(rng() * ends.length)]!;
-        const puzzle = await this.buildPuzzleFromPair(start, end, options.difficulty);
+        const puzzle = await this.buildPuzzleFromPair(start, end, options.difficulty, bounds);
         if (!puzzle) continue;
         if (exclude.has(puzzle.id)) continue;
         return puzzle;
@@ -99,13 +105,17 @@ export class PuzzleGenerator {
     );
   }
 
-  private hopCandidatesForAttempt(preferredHops: number, attempt: number): number[] {
+  private hopCandidatesForAttempt(
+    preferredHops: number,
+    attempt: number,
+    bounds: PuzzleHopBounds
+  ): number[] {
     if (attempt === 0) {
       return [preferredHops];
     }
 
     const candidates = new Set<number>([preferredHops]);
-    for (let hops = MIN_PUZZLE_HOPS; hops <= MAX_PUZZLE_HOPS; hops++) {
+    for (let hops = bounds.minHops; hops <= bounds.maxHops; hops++) {
       candidates.add(hops);
     }
 
@@ -120,7 +130,8 @@ export class PuzzleGenerator {
   private async buildPuzzleFromPair(
     start: string,
     end: string,
-    difficulty?: Difficulty
+    difficulty?: Difficulty,
+    bounds: PuzzleHopBounds = STANDARD_PUZZLE_BOUNDS
   ): Promise<Omit<Puzzle, "puzzleDate" | "nextPuzzleAt"> | null> {
     if (start === end) return null;
     if (!this.graph.isEligiblePuzzleEndpoint(start) || !this.graph.isEligiblePuzzleEndpoint(end)) {
@@ -138,15 +149,15 @@ export class PuzzleGenerator {
     if (!isAcceptablePuzzlePath(samplePath)) return null;
 
     const optimalHops = samplePath.length - 1;
-    if (!isValidPuzzleHops(optimalHops)) return null;
-    if (!matchesDifficulty(optimalHops, difficulty)) return null;
+    if (!isValidPuzzleHops(optimalHops, bounds)) return null;
+    if (!matchesDifficulty(optimalHops, difficulty, bounds)) return null;
 
     return {
       id: puzzleIdFromPair(start, end),
       start,
       end,
       optimalHops,
-      difficulty: difficultyFromHops(optimalHops),
+      difficulty: difficultyFromHops(optimalHops, bounds),
       samplePath,
     };
   }

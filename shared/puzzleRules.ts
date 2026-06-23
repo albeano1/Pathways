@@ -1,9 +1,44 @@
 import type { Difficulty } from "./types.js";
 import { generatePlurals, singularizeCandidates } from "./wordForms.js";
 
-/** Shortest-path hop count bounds for a valid puzzle pair. */
-export const MIN_PUZZLE_HOPS = 3;
-export const MAX_PUZZLE_HOPS = 6;
+export interface PuzzleHopBounds {
+  minNodes: number;
+  maxNodes: number;
+  minHops: number;
+  maxHops: number;
+}
+
+/** Daily puzzles through this Pacific date use the original shorter path range. */
+export const LEGACY_DAILY_PUZZLE_BOUNDS: PuzzleHopBounds = {
+  minNodes: 4,
+  maxNodes: 7,
+  minHops: 3,
+  maxHops: 6,
+};
+
+/** Default bounds for new random puzzles and daily puzzles from `MIN_SIX_NODE_PUZZLE_DATE`. */
+export const STANDARD_PUZZLE_BOUNDS: PuzzleHopBounds = {
+  minNodes: 6,
+  maxNodes: 8,
+  minHops: 5,
+  maxHops: 7,
+};
+
+/** First Pacific calendar day daily puzzles require at least six nodes. */
+export const MIN_SIX_NODE_PUZZLE_DATE = "2026-06-22";
+
+export function puzzleHopBoundsForDate(puzzleDate?: string): PuzzleHopBounds {
+  if (!puzzleDate || puzzleDate >= MIN_SIX_NODE_PUZZLE_DATE) {
+    return STANDARD_PUZZLE_BOUNDS;
+  }
+  return LEGACY_DAILY_PUZZLE_BOUNDS;
+}
+
+/** Shortest-path node count bounds for newly generated non-daily puzzles. */
+export const MIN_PUZZLE_NODES = STANDARD_PUZZLE_BOUNDS.minNodes;
+export const MAX_PUZZLE_NODES = STANDARD_PUZZLE_BOUNDS.maxNodes;
+export const MIN_PUZZLE_HOPS = STANDARD_PUZZLE_BOUNDS.minHops;
+export const MAX_PUZZLE_HOPS = STANDARD_PUZZLE_BOUNDS.maxHops;
 
 /** Word must sit in this degree range to be chosen as a puzzle endpoint. */
 export const MIN_WORD_DEGREE = 8;
@@ -232,19 +267,29 @@ export function isAcceptablePuzzlePath(path: string[]): boolean {
   return true;
 }
 
-export function difficultyFromHops(hops: number): Difficulty {
-  if (hops <= 3) return "easy";
-  if (hops <= 4) return "medium";
+export function difficultyFromHops(
+  hops: number,
+  bounds: PuzzleHopBounds = STANDARD_PUZZLE_BOUNDS
+): Difficulty {
+  if (hops <= bounds.minHops) return "easy";
+  if (hops <= bounds.minHops + 1) return "medium";
   return "hard";
 }
 
-export function isValidPuzzleHops(hops: number): boolean {
-  return hops >= MIN_PUZZLE_HOPS && hops <= MAX_PUZZLE_HOPS;
+export function isValidPuzzleHops(
+  hops: number,
+  bounds: PuzzleHopBounds = STANDARD_PUZZLE_BOUNDS
+): boolean {
+  return hops >= bounds.minHops && hops <= bounds.maxHops;
 }
 
-export function matchesDifficulty(hops: number, difficulty?: Difficulty): boolean {
+export function matchesDifficulty(
+  hops: number,
+  difficulty?: Difficulty,
+  bounds: PuzzleHopBounds = STANDARD_PUZZLE_BOUNDS
+): boolean {
   if (!difficulty) return true;
-  return difficultyFromHops(hops) === difficulty;
+  return difficultyFromHops(hops, bounds) === difficulty;
 }
 
 export function isEligiblePuzzleLemma(lemma: string, degree: number): boolean {
@@ -258,20 +303,26 @@ export function isEligiblePuzzleLemma(lemma: string, degree: number): boolean {
 }
 
 /** Deterministic daily target hop count from the date seed stream. */
-export function pickDailyTargetHops(rng: () => number): number {
-  const span = MAX_PUZZLE_HOPS - MIN_PUZZLE_HOPS + 1;
-  return MIN_PUZZLE_HOPS + Math.floor(rng() * span);
+export function pickDailyTargetHops(rng: () => number, bounds: PuzzleHopBounds): number {
+  const span = bounds.maxHops - bounds.minHops + 1;
+  return bounds.minHops + Math.floor(rng() * span);
 }
 
-export function pickRandomTargetHops(rng: () => number, difficulty?: Difficulty): number {
-  if (difficulty === "easy") return 3;
-  if (difficulty === "medium") return 4;
-  if (difficulty === "hard") return rng() < 0.5 ? 5 : 6;
-  return pickDailyTargetHops(rng);
+export function pickRandomTargetHops(
+  rng: () => number,
+  difficulty?: Difficulty,
+  bounds: PuzzleHopBounds = STANDARD_PUZZLE_BOUNDS
+): number {
+  if (difficulty === "easy") return bounds.minHops;
+  if (difficulty === "medium") return bounds.minHops + 1;
+  if (difficulty === "hard") {
+    return rng() < 0.5 ? bounds.maxHops - 1 : bounds.maxHops;
+  }
+  return pickDailyTargetHops(rng, bounds);
 }
 
-export function hopRangeLabel(): string {
-  return `${MIN_PUZZLE_HOPS}–${MAX_PUZZLE_HOPS}`;
+export function hopRangeLabel(bounds: PuzzleHopBounds = STANDARD_PUZZLE_BOUNDS): string {
+  return `${bounds.minNodes}–${bounds.maxNodes} nodes`;
 }
 
 /** Stable unordered pair key for deduplication. */

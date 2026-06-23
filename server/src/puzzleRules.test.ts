@@ -9,21 +9,32 @@ import {
   isMorphologyOnlyStep,
   isNumberPuzzleLemma,
   isValidPuzzleHops,
+  LEGACY_DAILY_PUZZLE_BOUNDS,
   matchesDifficulty,
   MAX_PUZZLE_HOPS,
   MAX_WORD_DEGREE,
   MIN_LEMMA_LENGTH,
   MIN_PUZZLE_HOPS,
+  MIN_SIX_NODE_PUZZLE_DATE,
   MIN_WORD_DEGREE,
   pickDailyTargetHops,
+  puzzleHopBoundsForDate,
   puzzleIdFromPair,
+  STANDARD_PUZZLE_BOUNDS,
 } from "../../shared/puzzleRules.js";
 import { mulberry32 } from "../../shared/dailyPuzzle.js";
 
 describe("puzzleRules", () => {
   it("defines solvable hop bounds", () => {
-    expect(MIN_PUZZLE_HOPS).toBe(3);
-    expect(MAX_PUZZLE_HOPS).toBe(6);
+    expect(MIN_PUZZLE_HOPS).toBe(5);
+    expect(MAX_PUZZLE_HOPS).toBe(7);
+    expect(LEGACY_DAILY_PUZZLE_BOUNDS.minHops).toBe(3);
+    expect(LEGACY_DAILY_PUZZLE_BOUNDS.maxHops).toBe(6);
+  });
+
+  it("keeps legacy daily bounds through the day before the six-node minimum", () => {
+    expect(puzzleHopBoundsForDate("2026-06-21")).toEqual(LEGACY_DAILY_PUZZLE_BOUNDS);
+    expect(puzzleHopBoundsForDate(MIN_SIX_NODE_PUZZLE_DATE)).toEqual(STANDARD_PUZZLE_BOUNDS);
   });
 
   it("requires well-connected, readable lemmas for endpoints", () => {
@@ -44,30 +55,37 @@ describe("puzzleRules", () => {
   });
 
   it("classifies difficulty from hop count", () => {
-    expect(difficultyFromHops(3)).toBe("easy");
-    expect(difficultyFromHops(4)).toBe("medium");
-    expect(difficultyFromHops(5)).toBe("hard");
+    expect(difficultyFromHops(3, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe("easy");
+    expect(difficultyFromHops(4, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe("medium");
+    expect(difficultyFromHops(5, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe("hard");
+    expect(difficultyFromHops(5, STANDARD_PUZZLE_BOUNDS)).toBe("easy");
+    expect(difficultyFromHops(6, STANDARD_PUZZLE_BOUNDS)).toBe("medium");
+    expect(difficultyFromHops(7, STANDARD_PUZZLE_BOUNDS)).toBe("hard");
   });
 
   it("validates hop counts", () => {
-    expect(isValidPuzzleHops(2)).toBe(false);
-    expect(isValidPuzzleHops(3)).toBe(true);
-    expect(isValidPuzzleHops(6)).toBe(true);
-    expect(isValidPuzzleHops(7)).toBe(false);
+    expect(isValidPuzzleHops(2, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe(false);
+    expect(isValidPuzzleHops(3, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe(true);
+    expect(isValidPuzzleHops(6, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe(true);
+    expect(isValidPuzzleHops(7, LEGACY_DAILY_PUZZLE_BOUNDS)).toBe(false);
+    expect(isValidPuzzleHops(4, STANDARD_PUZZLE_BOUNDS)).toBe(false);
+    expect(isValidPuzzleHops(5, STANDARD_PUZZLE_BOUNDS)).toBe(true);
+    expect(isValidPuzzleHops(7, STANDARD_PUZZLE_BOUNDS)).toBe(true);
+    expect(isValidPuzzleHops(8, STANDARD_PUZZLE_BOUNDS)).toBe(false);
   });
 
   it("matches optional difficulty filter", () => {
-    expect(matchesDifficulty(3, "easy")).toBe(true);
-    expect(matchesDifficulty(3, "hard")).toBe(false);
-    expect(matchesDifficulty(3)).toBe(true);
+    expect(matchesDifficulty(3, "easy", LEGACY_DAILY_PUZZLE_BOUNDS)).toBe(true);
+    expect(matchesDifficulty(3, "hard", LEGACY_DAILY_PUZZLE_BOUNDS)).toBe(false);
+    expect(matchesDifficulty(5)).toBe(true);
   });
 
   it("picks daily hop targets inside bounds", () => {
     const rng = mulberry32(12345);
     for (let i = 0; i < 20; i++) {
-      const hops = pickDailyTargetHops(rng);
-      expect(hops).toBeGreaterThanOrEqual(MIN_PUZZLE_HOPS);
-      expect(hops).toBeLessThanOrEqual(MAX_PUZZLE_HOPS);
+      const hops = pickDailyTargetHops(rng, STANDARD_PUZZLE_BOUNDS);
+      expect(hops).toBeGreaterThanOrEqual(STANDARD_PUZZLE_BOUNDS.minHops);
+      expect(hops).toBeLessThanOrEqual(STANDARD_PUZZLE_BOUNDS.maxHops);
     }
   });
 

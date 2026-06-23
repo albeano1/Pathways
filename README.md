@@ -8,7 +8,7 @@ A web game where you connect two related words through a commonsense graph built
 - Express + SQLite backend
 - ConceptNet 5.7 assertions (top 20,000 English words by connectivity)
 
-Daily puzzles are generated at runtime from the graph: pick a well-connected start word, then an end word exactly 3–6 hops away along shortest-path layers. Words need degree 8–300, readable length, and skip abstract hubs like "thing" or "person".
+Daily puzzles are generated at runtime from the graph: pick a well-connected start word, then an end word along shortest-path layers. Through 2026-06-21 puzzles are 4–7 nodes; from 2026-06-22 onward they are 6–8 nodes. Words need degree 8–300, readable length, and skip abstract hubs like "thing" or "person".
 
 ## Setup
 

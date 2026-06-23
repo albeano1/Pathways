@@ -73,7 +73,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
         const optimalHops = samplePath.length - 1;
         if (!isValidPuzzleHops(optimalHops)) {
           res.status(400).json({
-            error: `Path length must be ${hopRangeLabel()} hops (got ${optimalHops})`,
+            error: `Path length must be ${hopRangeLabel()} (got ${samplePath.length})`,
           });
           return;
         }

@@ -28,6 +28,8 @@ export interface PersistedGameState {
   puzzleStartedAt: number | null;
   pathReachedAt: number[];
   hopDurationsMs: number[];
+  nodeArrivedAt?: Record<string, number>;
+  edgeArrivedAt?: Record<string, number>;
   score: ScoreResponse | null;
   statsVisible: boolean;
   solveRecorded: boolean;
@@ -74,6 +76,8 @@ function migrateLegacyState(legacy: LegacyPersistedGameState): PersistedGameStat
     puzzleStartedAt: legacy.puzzleStartedAt,
     pathReachedAt: legacy.pathReachedAt ?? [],
     hopDurationsMs: legacy.hopDurationsMs ?? [],
+    nodeArrivedAt: {},
+    edgeArrivedAt: {},
     score: legacy.score,
     statsVisible: legacy.statsVisible ?? legacy.status === "won",
     solveRecorded: legacy.solveRecorded ?? false,

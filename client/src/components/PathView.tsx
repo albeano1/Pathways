@@ -59,7 +59,7 @@ export function PathView({
       <div className="path-view__chain">
         {path.map((word, index) => {
           const prefix = path.slice(0, index + 1);
-          const branchOptions = forkNextOptions(nodes, edges, start, currentNodeId, prefix);
+          const branchOptions = forkNextOptions(nodes, edges, start, prefix);
           const hasBranch = branchOptions.length > 1;
           const forkKey = pathPrefixKey(prefix);
           const selectedBranch = forkChoices[forkKey] ?? 0;

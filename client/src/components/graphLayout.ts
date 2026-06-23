@@ -1,6 +1,6 @@
 import type { Proximity } from "../../../shared/types";
 import type { PathNodeVariant } from "./PathNode";
-import { LAYOUT_NODE_W, layoutNodeWidth, visualHeightForVariant } from "./treeGeometry";
+import { LAYOUT_NODE_W, layoutNodeWidth, visualHeightForVariant, visualWidthForWord } from "./treeGeometry";
 import type { RenderGraphEdge, RenderGraphNode } from "./graphModel";
 
 export interface PositionedNode {
@@ -106,8 +106,15 @@ export interface PinnedPosition {
   y: number;
 }
 
-function nodeHalfW(compact: boolean): number {
-  return layoutNodeWidth(compact) / 2;
+interface LayoutPosition {
+  x: number;
+  y: number;
+  variant: PathNodeVariant;
+  word: string;
+}
+
+function nodeHalfWidth(word: string, variant: PathNodeVariant, compact: boolean): number {
+  return visualWidthForWord(word, variant, compact) / 2;
 }
 
 interface GraphExtents {
@@ -134,10 +141,10 @@ export function measureGraphExtents(
   let maxX = Number.NEGATIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxY = Number.NEGATIVE_INFINITY;
-  const hw = nodeHalfW(compact);
 
   for (const node of nodes) {
     const h = nodeHeight(node.variant, compact);
+    const hw = nodeHalfWidth(node.word, node.variant, compact);
     minX = Math.min(minX, node.x - hw);
     maxX = Math.max(maxX, node.x + hw);
     minY = Math.min(minY, node.y);
@@ -209,17 +216,19 @@ function nodeHeight(variant: PathNodeVariant, compact: boolean): number {
 function overlapsNode(
   x: number,
   y: number,
+  word: string,
   variant: PathNodeVariant,
-  otherX: number,
-  otherY: number,
-  otherVariant: PathNodeVariant,
+  other: LayoutPosition,
   minGap: number,
-  nodeW: number,
   compact: boolean
 ): boolean {
-  const hw = nodeW / 2 + minGap / 2;
-  const hh = (nodeHeight(variant, compact) + nodeHeight(otherVariant, compact)) / 2 + minGap / 2;
-  return Math.abs(x - otherX) < hw && Math.abs(y - otherY) < hh;
+  const minCenterDistance =
+    nodeHalfWidth(word, variant, compact) +
+    nodeHalfWidth(other.word, other.variant, compact) +
+    minGap;
+  const hh =
+    (nodeHeight(variant, compact) + nodeHeight(other.variant, compact)) / 2 + minGap / 2;
+  return Math.abs(x - other.x) < minCenterDistance && Math.abs(y - other.y) < hh;
 }
 
 function pointToSegmentDistance(
@@ -243,7 +252,7 @@ function betweenEdgePenalty(
   x: number,
   y: number,
   edges: RenderGraphEdge[],
-  positions: Map<string, { x: number; y: number; variant: PathNodeVariant }>,
+  positions: Map<string, LayoutPosition>,
   nodeW: number
 ): number {
   let penalty = 0;
@@ -273,9 +282,10 @@ function betweenEdgePenalty(
 function scoreCandidate(
   x: number,
   y: number,
+  word: string,
   variant: PathNodeVariant,
   idealX: number,
-  positions: Map<string, { x: number; y: number; variant: PathNodeVariant }>,
+  positions: Map<string, LayoutPosition>,
   edges: RenderGraphEdge[],
   minGap: number,
   nodeW: number,
@@ -289,7 +299,7 @@ function scoreCandidate(
   }
 
   for (const [, pos] of positions) {
-    if (overlapsNode(x, y, variant, pos.x, pos.y, pos.variant, minGap, nodeW, compact)) {
+    if (overlapsNode(x, y, word, variant, pos, minGap, compact)) {
       score += 500;
     }
   }
@@ -301,8 +311,9 @@ function scoreCandidate(
 function pickPlacementX(
   idealX: number,
   y: number,
+  word: string,
   variant: PathNodeVariant,
-  positions: Map<string, { x: number; y: number; variant: PathNodeVariant }>,
+  positions: Map<string, LayoutPosition>,
   edges: RenderGraphEdge[],
   minGap: number,
   panelWidth: number,
@@ -310,7 +321,7 @@ function pickPlacementX(
   compact: boolean,
   spineBias = false
 ): number {
-  const step = nodeW + minGap;
+  const step = visualWidthForWord(word, variant, compact) + minGap;
   const maxOffset = Math.max(step * 4, panelWidth * 0.45);
   const candidates = [idealX];
 
@@ -329,6 +340,7 @@ function pickPlacementX(
     const score = scoreCandidate(
       x,
       y,
+      word,
       variant,
       idealX,
       positions,
@@ -345,6 +357,39 @@ function pickPlacementX(
   }
 
   return bestX;
+}
+
+/** Push apart nodes on the same row that still overlap after placement. */
+function resolveRowOverlaps(
+  positions: Map<string, LayoutPosition>,
+  minGap: number,
+  compact: boolean,
+  rowTolerance: number
+): void {
+  const entries = [...positions.entries()];
+  entries.sort(([, left], [, right]) => left.y - right.y || left.x - right.x);
+
+  for (let index = 0; index < entries.length; index++) {
+    const [, anchor] = entries[index]!;
+    const row = entries.filter(([, pos]) => Math.abs(pos.y - anchor.y) < rowTolerance);
+    row.sort(([, left], [, right]) => left.x - right.x);
+
+    for (let rowIndex = 1; rowIndex < row.length; rowIndex++) {
+      const [leftId, leftPos] = row[rowIndex - 1]!;
+      const [rightId, rightPos] = row[rowIndex]!;
+      const minCenterDistance =
+        nodeHalfWidth(leftPos.word, leftPos.variant, compact) +
+        nodeHalfWidth(rightPos.word, rightPos.variant, compact) +
+        minGap;
+
+      if (rightPos.x - leftPos.x < minCenterDistance) {
+        const shift = minCenterDistance - (rightPos.x - leftPos.x);
+        rightPos.x += shift;
+        positions.set(rightId, rightPos);
+        row[rowIndex] = [rightId, rightPos];
+      }
+    }
+  }
 }
 
 function computeDepthY(
@@ -396,13 +441,13 @@ export function computeGraphLayout(
     depthById.set(node.id, depthBelowStart(startHops, node.hopsToEnd));
   }
 
-  const positions = new Map<string, { x: number; y: number; variant: PathNodeVariant }>();
+  const positions = new Map<string, LayoutPosition>();
   const newPositions: Array<{ id: string; x: number; y: number }> = [];
 
   for (const node of nodes) {
     const pin = pinned.get(node.id);
     if (pin) {
-      positions.set(node.id, { x: pin.x, y: pin.y, variant: node.variant });
+      positions.set(node.id, { x: pin.x, y: pin.y, variant: node.variant, word: node.word });
     }
   }
 
@@ -422,7 +467,7 @@ export function computeGraphLayout(
       .map((id) => positions.get(id))
       .filter(Boolean) as Array<{ x: number; y: number }>;
     const x = childPins.length > 0 ? average(childPins.map((p) => p.x)) : 0;
-    positions.set(startNode.id, { x, y: startTop, variant: startNode.variant });
+    positions.set(startNode.id, { x, y: startTop, variant: startNode.variant, word: startNode.word });
     newPositions.push({ id: startNode.id, x, y: startTop });
   }
 
@@ -435,7 +480,7 @@ export function computeGraphLayout(
     const parentIds = parents.get(node.id) ?? [];
     const parentPositions = parentIds
       .map((id) => positions.get(id))
-      .filter(Boolean) as Array<{ x: number; y: number; variant: PathNodeVariant }>;
+      .filter(Boolean) as LayoutPosition[];
 
     if (parentPositions.length > 0) {
       const parentBottom = Math.max(
@@ -462,6 +507,7 @@ export function computeGraphLayout(
     const x = pickPlacementX(
       idealX,
       y,
+      node.word,
       node.variant,
       positions,
       edges,
@@ -471,9 +517,11 @@ export function computeGraphLayout(
       compact,
       onSpine
     );
-    positions.set(node.id, { x, y, variant: node.variant });
+    positions.set(node.id, { x, y, variant: node.variant, word: node.word });
     newPositions.push({ id: node.id, x, y });
   }
+
+  resolveRowOverlaps(positions, space.minGap, compact, space.rowGap);
 
   if (startNode && positions.has(startNode.id) && !pinned.has(startNode.id)) {
     const childXs = nodes
@@ -492,9 +540,12 @@ export function computeGraphLayout(
   let maxX = nodeW;
   let maxBottom = startBottom;
 
-  for (const [, pos] of positions) {
-    minX = Math.min(minX, pos.x - nodeW / 2);
-    maxX = Math.max(maxX, pos.x + nodeW / 2);
+  for (const [id, pos] of positions) {
+    const node = nodes.find((entry) => entry.id === id);
+    if (!node) continue;
+    const hw = nodeHalfWidth(node.word, node.variant, compact);
+    minX = Math.min(minX, pos.x - hw);
+    maxX = Math.max(maxX, pos.x + hw);
     maxBottom = Math.max(maxBottom, pos.y + nodeHeight(pos.variant, compact));
   }
 

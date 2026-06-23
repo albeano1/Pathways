@@ -1,6 +1,6 @@
 import type { PositionedNode } from "./graphLayout";
 import { isCompactLayout } from "./graphLayout";
-import { layoutNodeWidth, visualHeightForVariant } from "./treeGeometry";
+import { visualHeightForVariant, visualWidthForWord } from "./treeGeometry";
 
 function nodeCenter(node: PositionedNode, compact: boolean): { x: number; y: number } {
   const height = visualHeightForVariant(node.variant, compact);
@@ -9,7 +9,7 @@ function nodeCenter(node: PositionedNode, compact: boolean): { x: number; y: num
 
 function nodeHalfExtents(node: PositionedNode, compact: boolean): { hw: number; hh: number } {
   return {
-    hw: layoutNodeWidth(compact) / 2,
+    hw: visualWidthForWord(node.word, node.variant, compact) / 2,
     hh: visualHeightForVariant(node.variant, compact) / 2,
   };
 }

@@ -1163,6 +1163,81 @@ button {
   color: #64748b;
 }
 
+.win-popup__route {
+  margin: 0 0 12px;
+  padding: 14px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.win-popup__route-chain {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px 2px;
+}
+
+.win-popup__route-step {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.win-popup__route-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin: 0 2px;
+}
+
+.win-popup__route-arrow {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.win-popup__route-word {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #0f172a;
+  background: #fff;
+}
+
+.win-popup__route-word--optimal {
+  border-color: #22c55e;
+  background: #f0fdf4;
+}
+
+.win-popup__route-word--extra {
+  border-color: #eab308;
+  background: #fefce8;
+}
+
+.win-popup__route-hop {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1;
+}
+
+.win-popup__perfect {
+  margin: 12px 0 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
 .win-popup__stats {
   display: flex;
   flex-direction: row;

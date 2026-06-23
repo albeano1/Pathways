@@ -10,7 +10,6 @@ import {
   nodeByWord,
   resolveParentNodeId,
   scorePath,
-  shortestWinPath,
   syncGraphCounters,
   validateStep,
   isServerFailure,
@@ -30,6 +29,7 @@ import {
   type PersistedGameState,
 } from "../gamePersistence";
 import { hopDurationsFromReachedAt, updatePathReachedAt } from "../hopTiming";
+import { buildActivePath } from "../api/activePath";
 import { getBootSnapshot } from "../bootstrapGame";
 import { prefetchDailyPuzzle } from "../prefetchPuzzle";
 import { getPuzzleRefresh } from "../earlyPuzzleBoot";
@@ -100,6 +100,8 @@ function createFreshState(start: string, optimalHops: number) {
     puzzleStartedAt: null as number | null,
     pathReachedAt: [] as number[],
     hopDurationsMs: [] as number[],
+    nodeArrivedAt: {} as Record<string, number>,
+    edgeArrivedAt: {} as Record<string, number>,
     statsVisible: false,
     solveRecorded: false,
   };
@@ -127,6 +129,8 @@ export function useGame() {
   const [statsVisible, setStatsVisible] = useState(false);
   const [solveRecorded, setSolveRecorded] = useState(false);
   const [hopDurationsMs, setHopDurationsMs] = useState<number[]>([]);
+  const [nodeArrivedAt, setNodeArrivedAt] = useState<Record<string, number>>({});
+  const [edgeArrivedAt, setEdgeArrivedAt] = useState<Record<string, number>>({});
   const puzzleStartedAt = useRef<number | null>(null);
   const pathReachedAt = useRef<number[]>([]);
   const hydrated = useRef(false);
@@ -157,6 +161,8 @@ export function useGame() {
     setSolveRecorded(fresh.solveRecorded);
     puzzleStartedAt.current = fresh.puzzleStartedAt;
     pathReachedAt.current = fresh.pathReachedAt;
+    setNodeArrivedAt({ ...fresh.nodeArrivedAt });
+    setEdgeArrivedAt({ ...fresh.edgeArrivedAt });
     setHopDurationsMs(fresh.hopDurationsMs);
   }, []);
 
@@ -178,6 +184,8 @@ export function useGame() {
     if (saved.puzzleStartedAt !== null && pathReachedAt.current.length === 0) {
       pathReachedAt.current = [saved.puzzleStartedAt];
     }
+    setNodeArrivedAt({ ...(saved.nodeArrivedAt ?? {}) });
+    setEdgeArrivedAt({ ...(saved.edgeArrivedAt ?? {}) });
     setHopDurationsMs(saved.hopDurationsMs ?? []);
   }, []);
 
@@ -390,6 +398,8 @@ export function useGame() {
       puzzleStartedAt: puzzleStartedAt.current,
       pathReachedAt: pathReachedAt.current,
       hopDurationsMs,
+      nodeArrivedAt: nodeArrivedAt,
+      edgeArrivedAt: edgeArrivedAt,
       score,
       statsVisible,
       solveRecorded,
@@ -410,6 +420,8 @@ export function useGame() {
     statsVisible,
     solveRecorded,
     hopDurationsMs,
+    nodeArrivedAt,
+    edgeArrivedAt,
   ]);
 
   const recordGuess = useCallback((isWrong: boolean) => {
@@ -424,7 +436,11 @@ export function useGame() {
     const now = Date.now();
     puzzleStartedAt.current = now;
     pathReachedAt.current = [now];
-  }, [status]);
+    const startNode = graphNodes.find((node) => node.word === puzzle?.start);
+    if (startNode) {
+      setNodeArrivedAt((previous) => ({ ...previous, [startNode.id]: now }));
+    }
+  }, [graphNodes, puzzle?.start, status]);
 
   const notePathArrival = useCallback((pathWords: string[]) => {
     const now = Date.now();
@@ -443,7 +459,6 @@ export function useGame() {
       if (puzzleStartedAt.current === null) {
         startTimer();
       }
-      notePathArrival(winPath);
       const durations = hopDurationsFromReachedAt(pathReachedAt.current);
       setHopDurationsMs(durations);
       const solveTimeMs =
@@ -479,7 +494,7 @@ export function useGame() {
         }
       });
     },
-    [notePathArrival, puzzle, startTimer]
+    [puzzle, startTimer]
   );
 
   const dismissStats = useCallback(() => {
@@ -610,12 +625,32 @@ export function useGame() {
         setCurrentNodeId(targetNode.id);
         setError(null);
 
-        const winPath = shortestWinPath(nextNodes, nextEdges, puzzle.start, puzzle.end);
-        if (canonical === puzzle.end && winPath) {
+        if (puzzleStartedAt.current === null) {
+          startTimer();
+        }
+        const arrivalTime = Date.now();
+        setNodeArrivedAt((previous) =>
+          previous[targetNode.id]
+            ? previous
+            : { ...previous, [targetNode.id]: arrivalTime }
+        );
+        setEdgeArrivedAt((previous) => {
+          const next = { ...previous };
+          for (const edge of newEdges) {
+            const key = `${edge.fromNodeId}->${edge.toNodeId}`;
+            if (!next[key]) {
+              next[key] = arrivalTime;
+            }
+          }
+          return next;
+        });
+
+        const activePath = buildActivePath(nextNodes, nextEdges, puzzle.start, targetNode.id);
+        notePathArrival(activePath);
+
+        if (canonical === puzzle.end) {
           setStatus("won");
-          finalizeScore(winPath, guessStats);
-        } else if (winPath) {
-          notePathArrival(winPath);
+          finalizeScore(activePath, guessStats);
         }
 
         return true;
@@ -673,6 +708,9 @@ export function useGame() {
     loading,
     score,
     hopDurationsMs,
+    nodeArrivedAt,
+    edgeArrivedAt,
+    puzzleStartedAt: puzzleStartedAt.current,
     statsVisible,
     dismissStats,
     showStats,

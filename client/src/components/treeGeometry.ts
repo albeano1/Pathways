@@ -24,6 +24,31 @@ export function layoutNodeWidth(compact = false): number {
   return compact ? LAYOUT_NODE_W_COMPACT : LAYOUT_NODE_W;
 }
 
+/** Approximate rendered pill width from CSS (min-width, padding, border, bold text). */
+export function visualWidthForWord(
+  word: string,
+  variant: PathNodeVariant,
+  compact = false
+): number {
+  const border = 6;
+  const charWidth = compact ? 11 : 10.5;
+  const paddingX = compact ? 40 : 40;
+  const minWidth =
+    variant === "rejected"
+      ? compact
+        ? 104
+        : 80
+      : variant === "start" || variant === "target" || variant === "target-ghost"
+        ? compact
+          ? 120
+          : 96
+        : compact
+          ? 120
+          : 96;
+
+  return Math.max(minWidth, word.length * charWidth + paddingX + border);
+}
+
 function wordHeight(variant: PathNodeVariant, compact: boolean): number {
   if (variant === "rejected") return compact ? COMPACT_REJECTED_PILL_H : REJECTED_PILL_H;
   if (variant === "current" || variant === "win-tip") {

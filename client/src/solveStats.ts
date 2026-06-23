@@ -144,8 +144,11 @@ export function scoredPathNodes(hops: number): number {
 
 export function formatHopDuration(ms: number): string {
   const seconds = Math.max(0, ms / 1000);
-  if (seconds < 60) {
+  if (seconds < 10) {
     return `${seconds.toFixed(1)}s`;
+  }
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
   }
   return formatSolveTime(ms);
 }
@@ -192,22 +195,33 @@ export function buildShareText(options: {
   streak: number;
   hopDurationsMs: number[];
   averageTimeMs: number | null;
+  explorationTrail: string;
 }): string {
-  const { puzzleDateLabel, score, streak, hopDurationsMs, averageTimeMs } = options;
+  const { puzzleDateLabel, score, streak, hopDurationsMs, averageTimeMs, explorationTrail } =
+    options;
   const perfectPath = score.playerHops === score.optimalHops;
 
-  const lines = [APP_NAME, puzzleDateLabel, buildHopTrailLine(score, hopDurationsMs)];
+  const trail =
+    explorationTrail ||
+    buildHopTrailLine(score, hopDurationsMs);
 
-  if (streak > 0) {
-    lines.push(`${streak} day streak`);
-  }
-
-  if (averageTimeMs !== null) {
-    lines.push(`Avg: ${formatSolveTime(averageTimeMs)}`);
-  }
+  const lines = [APP_NAME, puzzleDateLabel, trail];
 
   if (perfectPath) {
     lines.push("Perfect path!");
+  } else if (score.playerHops > score.optimalHops) {
+    lines.push(`+${score.playerHops - score.optimalHops} extra hop`);
+  }
+
+  const meta: string[] = [];
+  if (streak > 0) {
+    meta.push(`${streak} day streak`);
+  }
+  if (averageTimeMs !== null) {
+    meta.push(`Avg ${formatSolveTime(averageTimeMs)}`);
+  }
+  if (meta.length > 0) {
+    lines.push(meta.join(" · "));
   }
 
   lines.push(APP_URL);

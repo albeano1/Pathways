@@ -111,31 +111,60 @@ function resolveNodeIdsAtPrefix(
   return currentIds;
 }
 
-/** Distinct next words from this prefix that can still reach the current node. */
+/** Distinct next words along confirmed edges from this prefix. */
 export function forkNextOptions(
   nodes: GraphNode[],
   edges: GraphEdge[],
   startWord: string,
-  targetNodeId: string,
   prefix: string[]
 ): string[] {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const childrenByParent = buildChildrenByParent(edges);
-  const reachabilityCache = new Map<string, boolean>();
   const prefixNodeIds = resolveNodeIdsAtPrefix(nodes, edges, startWord, prefix);
   const nextWords = new Set<string>();
 
   for (const parentId of prefixNodeIds) {
     for (const childId of childrenByParent.get(parentId) ?? []) {
-      if (!canReachNode(childId, targetNodeId, childrenByParent, reachabilityCache)) {
-        continue;
-      }
       const child = nodeById.get(childId);
       if (child) nextWords.add(child.word);
     }
   }
 
   return [...nextWords].sort((left, right) => left.localeCompare(right));
+}
+
+function appendLinearBranchTail(
+  result: string[],
+  nodeIds: string[],
+  targetNodeId: string,
+  nodes: GraphNode[],
+  childrenByParent: Map<string, string[]>,
+  reachabilityCache: Map<string, boolean>
+): void {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  let currentIds = nodeIds;
+
+  while (currentIds.length === 1) {
+    const currentId = currentIds[0]!;
+    if (currentId === targetNodeId) return;
+
+    const children = childrenByParent.get(currentId) ?? [];
+    if (children.length !== 1) break;
+
+    const childId = children[0]!;
+    const child = nodeById.get(childId);
+    if (!child || result[result.length - 1] === child.word) break;
+
+    result.push(child.word);
+    if (childId === targetNodeId) return;
+
+    if (canReachNode(childId, targetNodeId, childrenByParent, reachabilityCache)) {
+      currentIds = [childId];
+      continue;
+    }
+
+    currentIds = [childId];
+  }
 }
 
 export function defaultForkChoices(
@@ -148,7 +177,7 @@ export function defaultForkChoices(
   const choices: Record<string, number> = {};
   for (let index = 0; index < defaultPath.length - 1; index++) {
     const prefix = defaultPath.slice(0, index + 1);
-    const options = forkNextOptions(nodes, edges, startWord, targetNodeId, prefix);
+    const options = forkNextOptions(nodes, edges, startWord, prefix);
     if (options.length <= 1) continue;
     const nextWord = defaultPath[index + 1];
     const optionIndex = nextWord ? options.indexOf(nextWord) : -1;
@@ -170,8 +199,11 @@ export function buildPathFromForkChoices(
   if (startNode.id === targetNodeId) return [startWord];
 
   const result: string[] = [startWord];
+  const childrenByParent = buildChildrenByParent(edges);
+  const reachabilityCache = new Map<string, boolean>();
+
   while (true) {
-    const options = forkNextOptions(nodes, edges, startWord, targetNodeId, result);
+    const options = forkNextOptions(nodes, edges, startWord, result);
     if (options.length === 0) break;
 
     const key = pathPrefixKey(result);
@@ -181,6 +213,21 @@ export function buildPathFromForkChoices(
 
     const atPrefixIds = resolveNodeIdsAtPrefix(nodes, edges, startWord, result);
     if (atPrefixIds.includes(targetNodeId)) break;
+
+    const canReachTarget = atPrefixIds.some((id) =>
+      canReachNode(id, targetNodeId, childrenByParent, reachabilityCache)
+    );
+    if (!canReachTarget) {
+      appendLinearBranchTail(
+        result,
+        atPrefixIds,
+        targetNodeId,
+        nodes,
+        childrenByParent,
+        reachabilityCache
+      );
+      break;
+    }
   }
 
   return result;
@@ -230,6 +277,49 @@ export function enumeratePathsToNode(
     const leftDefault = pathsEqual(left, defaultPath);
     const rightDefault = pathsEqual(right, defaultPath);
     if (leftDefault !== rightDefault) return leftDefault ? -1 : 1;
+    if (left.length !== right.length) return left.length - right.length;
+    return pathLabel(left).localeCompare(pathLabel(right));
+  });
+
+  return paths;
+}
+
+/** Every root-to-leaf path in the confirmed graph (winning routes and dead-end branches). */
+export function enumerateExploredPaths(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  startWord: string,
+  maxPaths = 32
+): string[][] {
+  const startNode = nodes.find((node) => node.word === startWord);
+  if (!startNode) return [];
+
+  const childrenByParent = buildChildrenByParent(edges);
+  const paths: string[][] = [];
+
+  const visit = (nodeId: string, visited: Set<string>, chain: string[]) => {
+    if (paths.length >= maxPaths) return;
+    const node = nodes.find((entry) => entry.id === nodeId);
+    if (!node || visited.has(nodeId)) return;
+
+    const nextChain = [...chain, node.word];
+    const children = childrenByParent.get(nodeId) ?? [];
+
+    if (children.length === 0) {
+      paths.push(nextChain);
+      return;
+    }
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(nodeId);
+    for (const childId of children) {
+      visit(childId, nextVisited, nextChain);
+    }
+  };
+
+  visit(startNode.id, new Set(), []);
+
+  paths.sort((left, right) => {
     if (left.length !== right.length) return left.length - right.length;
     return pathLabel(left).localeCompare(pathLabel(right));
   });

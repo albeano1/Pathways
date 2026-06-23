@@ -1,6 +1,7 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState, useMemo, type CSSProperties } from "react";
 import { getDebugPuzzleFromUrl } from "../debugPuzzle";
 import { clearDailySession } from "../dailyStorage";
+import { buildActivePath } from "../api/activePath";
 import { getWinStreak } from "../solveStats";
 import { useGame } from "../hooks/useGame";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -34,6 +35,9 @@ export function GameBoard() {
     error,
     score,
     hopDurationsMs,
+    nodeArrivedAt,
+    edgeArrivedAt,
+    puzzleStartedAt,
     statsVisible,
     dismissStats,
     showStats,
@@ -42,6 +46,13 @@ export function GameBoard() {
     submitting,
     persistLayout,
   } = useGame();
+
+  const winPath = useMemo(() => {
+    if (!puzzle || status !== "won") return [];
+    const endNode = graphNodes.find((node) => node.word === puzzle.end);
+    if (!endNode) return [];
+    return buildActivePath(graphNodes, graphEdges, puzzle.start, endNode.id);
+  }, [puzzle, status, graphNodes, graphEdges]);
 
   const handleNextPuzzle = () => {
     clearDailySession();
@@ -184,6 +195,13 @@ export function GameBoard() {
             score={score}
             puzzleDate={puzzle.puzzleDate}
             hopDurationsMs={hopDurationsMs}
+            path={winPath}
+            start={puzzle.start}
+            graphNodes={graphNodes}
+            graphEdges={graphEdges}
+            nodeArrivedAt={nodeArrivedAt}
+            edgeArrivedAt={edgeArrivedAt}
+            puzzleStartedAt={puzzleStartedAt}
             nextPuzzleAt={puzzle.nextPuzzleAt}
             onBack={dismissStats}
             onNextPuzzle={debugPuzzle ? undefined : handleNextPuzzle}

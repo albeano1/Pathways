@@ -8,6 +8,7 @@ import {
   isEligiblePuzzleLemma,
   isMorphologyOnlyStep,
   isNumberPuzzleLemma,
+  isScientificPuzzleLemma,
   isValidPuzzleHops,
   LEGACY_DAILY_PUZZLE_BOUNDS,
   matchesDifficulty,
@@ -108,6 +109,21 @@ describe("puzzleRules", () => {
     expect(
       isAcceptablePuzzlePath(["regulation", "control", "mechanism", "vehicle", "hgv", "motor"])
     ).toBe(false);
+  });
+
+  it("blocks scientific lemmas as puzzle endpoints", () => {
+    expect(isScientificPuzzleLemma("intron")).toBe(true);
+    expect(isScientificPuzzleLemma("polyp")).toBe(true);
+    expect(isScientificPuzzleLemma("plastid")).toBe(true);
+    expect(isScientificPuzzleLemma("hypothalamus")).toBe(true);
+    expect(isScientificPuzzleLemma("medulla")).toBe(true);
+    expect(isScientificPuzzleLemma("asthma")).toBe(true);
+    expect(isScientificPuzzleLemma("pyrrolidine")).toBe(true);
+    expect(isScientificPuzzleLemma("biology")).toBe(true);
+    expect(isScientificPuzzleLemma("apple")).toBe(false);
+    expect(isScientificPuzzleLemma("star")).toBe(false);
+    expect(isEligiblePuzzleLemma("intron", 20)).toBe(false);
+    expect(isEligiblePuzzleLemma("apple", 20)).toBe(true);
   });
 
   it("rejects morphology-only and counting paths", () => {

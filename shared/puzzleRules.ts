@@ -213,6 +213,98 @@ export const ABBREVIATION_PUZZLE_LEMMAS = new Set([
   "hbd",
 ]);
 
+/** Everyday lemmas that can look technical in a dictionary but work as puzzle endpoints. */
+export const GENERAL_VOCABULARY_ALLOWLIST = new Set([
+  "acid",
+  "air",
+  "animal",
+  "art",
+  "blood",
+  "bone",
+  "brain",
+  "cell",
+  "dream",
+  "earth",
+  "energy",
+  "eye",
+  "fear",
+  "field",
+  "fire",
+  "fish",
+  "flower",
+  "food",
+  "force",
+  "fruit",
+  "gas",
+  "glass",
+  "hand",
+  "heart",
+  "history",
+  "hope",
+  "law",
+  "leaf",
+  "light",
+  "love",
+  "metal",
+  "moon",
+  "music",
+  "nerve",
+  "oil",
+  "paper",
+  "peace",
+  "plant",
+  "power",
+  "rain",
+  "rock",
+  "root",
+  "salt",
+  "seed",
+  "skin",
+  "snow",
+  "sound",
+  "space",
+  "star",
+  "stone",
+  "sugar",
+  "sun",
+  "time",
+  "tree",
+  "virus",
+  "war",
+  "water",
+  "wave",
+  "wind",
+  "wood",
+]);
+
+const SCIENTIFIC_LEMMA_PATTERNS: RegExp[] = [
+  /ology$/,
+  /itis$/,
+  /osis$/,
+  /otomy$/,
+  /plasm$/,
+  /cyte$/,
+  /phage$/,
+  /zoan$/,
+  /hormone$/,
+  /enzyme$/,
+  /(?:genome|intron|exon|codon|allele|plastid|chromosome|mitochondri|chloroplast|ribosome|organelle|hydrozoan|cnidarian)/,
+  /(?:benzene|pyrrolidine|alkaloid|hydrocarbon|isotope|catalyst|polymer|peptide|nucleotide)/,
+  /^poly[pst]/,
+  /(?:hypothalamus|cerebellum|cerebrum|amygdala|hippocampus|larynx|pharynx|spiracle|atrium|ventricle|medulla|cortex|thalamus|pons|midbrain|brainstem)/,
+  /(?:bronchus|trachea|esophagus|duodenum|jejunum|ileum|cecum|rectum|pleura|thorax|pelvis|sternum|diaphragm)/,
+  /(?:clavicle|scapula|femur|tibia|fibula|ulna|radius|humerus|patella|mandible|maxilla|metacarpal|metatarsal)/,
+  /(?:asthma|diabetes|anemia|anaemia|leukemia|lymphoma|melanoma|carcinoma|sarcoma|embolism|ischemia|oedema|edema|sepsis|necrosis|fibrosis|sclerosis|stenosis)/,
+  /(?:meson|boson|fermion|hadron|lepton|quark|gluon|neutrino|positron|muon|tachyon|baryon|hadron)/,
+  /(?:proton|neutron|electron|photon|nucleon|isotope|radiation|wavelength|frequency)/,
+  /(?:nootropic|psychotropic|analgesic|anesthetic|anaesthetic|antibiotic|antiviral|antidepressant|antipsychotic|barbiturate|opioid)/,
+];
+
+export function isScientificPuzzleLemma(lemma: string): boolean {
+  if (GENERAL_VOCABULARY_ALLOWLIST.has(lemma)) return false;
+  return SCIENTIFIC_LEMMA_PATTERNS.some((pattern) => pattern.test(lemma));
+}
+
 export function isAbbreviationLemma(lemma: string): boolean {
   if (!/^[a-z]+$/.test(lemma)) return true;
   if (lemma.length <= 2) return true;
@@ -299,6 +391,7 @@ export function isEligiblePuzzleLemma(lemma: string, degree: number): boolean {
   if (BLOCKED_PUZZLE_LEMMAS.has(lemma)) return false;
   if (isNumberPuzzleLemma(lemma)) return false;
   if (isAbbreviationLemma(lemma)) return false;
+  if (isScientificPuzzleLemma(lemma)) return false;
   return true;
 }
 

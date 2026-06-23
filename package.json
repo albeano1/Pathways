@@ -10,9 +10,11 @@
     "postinstall": "npm rebuild better-sqlite3",
     "build:graph": "tsx scripts/build-graph.ts",
     "embed:daily": "tsx scripts/embed-daily-puzzle.ts",
+    "validate:daily": "tsx scripts/validate-daily-embed.ts",
+    "validate:daily:full": "tsx scripts/validate-daily-embed.ts --full",
     "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w client && npm run build -w server",
-    "build:netlify": "npm rebuild better-sqlite3 && tsx scripts/ensure-graph-db.ts && tsx scripts/prepare-netlify-function.ts && tsx scripts/embed-daily-puzzle.ts && npm run build -w client && npm run build -w server",
+    "build:netlify": "npm rebuild better-sqlite3 && tsx scripts/ensure-graph-db.ts && tsx scripts/prepare-netlify-function.ts && tsx scripts/embed-daily-puzzle.ts && tsx scripts/validate-daily-embed.ts && npm run build -w client && npm run build -w server",
     "start": "npm run start -w server"
   },
   "devDependencies": {

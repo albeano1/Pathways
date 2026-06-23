@@ -4,11 +4,11 @@ import { PuzzleGenerator } from "./puzzleGenerator.js";
 import { createPuzzleTestGraph } from "./testGraph.js";
 
 describe("PuzzleGenerator", () => {
-  const hasDefinition = async () => true;
+  const allowEndpoint = async () => true;
 
   it("generates solvable puzzles within hop bounds", async () => {
     const graph = createPuzzleTestGraph();
-    const generator = new PuzzleGenerator(graph, hasDefinition);
+    const generator = new PuzzleGenerator(graph, allowEndpoint, allowEndpoint);
 
     for (let i = 0; i < 20; i++) {
       const puzzle = await generator.generate({ maxAttempts: 200 });
@@ -24,7 +24,7 @@ describe("PuzzleGenerator", () => {
 
   it("generates the same daily puzzle for a date", async () => {
     const graph = createPuzzleTestGraph();
-    const generator = new PuzzleGenerator(graph, hasDefinition);
+    const generator = new PuzzleGenerator(graph, allowEndpoint, allowEndpoint);
     const nextAt = "2026-06-19T07:00:00.000Z";
     const first = await generator.generateDaily("2026-06-18", nextAt);
     const second = await generator.generateDaily("2026-06-18", nextAt);
@@ -35,7 +35,7 @@ describe("PuzzleGenerator", () => {
 
   it("targets a hop count inside puzzle bounds for daily puzzles", async () => {
     const graph = createPuzzleTestGraph();
-    const generator = new PuzzleGenerator(graph, hasDefinition);
+    const generator = new PuzzleGenerator(graph, allowEndpoint, allowEndpoint);
     const legacy = await generator.generateDaily("2026-03-04", "2026-03-05T07:00:00.000Z");
     expect(legacy.optimalHops).toBeGreaterThanOrEqual(LEGACY_DAILY_PUZZLE_BOUNDS.minHops);
     expect(legacy.optimalHops).toBeLessThanOrEqual(LEGACY_DAILY_PUZZLE_BOUNDS.maxHops);

@@ -14,7 +14,7 @@ import {
 } from "../../shared/puzzleRules.js";
 import { hashString, mulberry32 } from "../../shared/dailyPuzzle.js";
 import type { Difficulty, Puzzle } from "../../shared/types.js";
-import { lemmaHasDefinition } from "./dictionary.js";
+import { lemmaHasDefinition, lemmaIsGeneralAudienceEndpoint } from "./dictionary.js";
 import type { GraphService } from "./graph.js";
 
 export interface GeneratePuzzleOptions {
@@ -28,7 +28,8 @@ export type PuzzleDefinitionCheck = (lemma: string) => Promise<boolean>;
 export class PuzzleGenerator {
   constructor(
     private readonly graph: GraphService,
-    private readonly hasDefinition: PuzzleDefinitionCheck = lemmaHasDefinition
+    private readonly hasDefinition: PuzzleDefinitionCheck = lemmaHasDefinition,
+    private readonly isGeneralAudienceEndpoint: PuzzleDefinitionCheck = lemmaIsGeneralAudienceEndpoint
   ) {}
 
   async generate(
@@ -83,7 +84,7 @@ export class PuzzleGenerator {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const startOffset = Math.floor(rng() * startCount);
       const start = this.graph.getEligibleLemmaAt(startOffset);
-      if (!start) continue;
+      if (!start || !this.graph.isEligiblePuzzleEndpoint(start)) continue;
 
       const hopCandidates = this.hopCandidatesForAttempt(preferredHops, attempt, bounds);
       for (const hops of hopCandidates) {
@@ -138,11 +139,13 @@ export class PuzzleGenerator {
       return null;
     }
 
-    const [startDefined, endDefined] = await Promise.all([
+    const [startDefined, endDefined, startGeneral, endGeneral] = await Promise.all([
       this.hasDefinition(start),
       this.hasDefinition(end),
+      this.isGeneralAudienceEndpoint(start),
+      this.isGeneralAudienceEndpoint(end),
     ]);
-    if (!startDefined || !endDefined) return null;
+    if (!startDefined || !endDefined || !startGeneral || !endGeneral) return null;
 
     const samplePath = this.graph.shortestPath(start, end);
     if (!samplePath) return null;

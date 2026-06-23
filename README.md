@@ -54,7 +54,9 @@ The repo includes `netlify.toml`. Connect the site to Netlify and deploy from th
 **Publish directory:** `client/dist`  
 **Functions directory:** `netlify/functions`
 
-Each deploy builds the full ConceptNet graph (~20,000 most-connected English words, ~24MB SQLite database), embeds today's puzzle as a static JSON file, then builds the client and API function. Repeat visits load instantly from browser cache; first visits fetch the static puzzle from the CDN instead of waiting on a cold serverless function.
+Each deploy builds the full ConceptNet graph (~20,000 most-connected English words, ~24MB SQLite database), precomputes 60 days of daily puzzles into `client/public/daily/`, validates that every cached start/goal avoids technical vocabulary, then builds the client and API function. Repeat visits load instantly from browser cache; first visits fetch the static puzzle from the CDN instead of waiting on a cold serverless function.
+
+Regenerate the cache locally with `npm run embed:daily` (requires `data/graph.db`). CI and Netlify builds run `npm run validate:daily` to ensure committed embed files never ship with scientific or medical jargon as endpoints.
 
 To speed up later deploys, add a cached path in Netlify:
 

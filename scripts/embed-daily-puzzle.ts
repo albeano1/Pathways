@@ -6,6 +6,7 @@ import type { StepContextResponse } from "../shared/types.js";
 import { GraphService } from "../server/src/graph.js";
 import { PuzzleService } from "../server/src/puzzles.js";
 import { getDbPath } from "../server/src/bootstrapGraphDb.js";
+import { assertPlayablePuzzleEndpoints } from "../server/src/playableEndpoints.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
 
   for (let dayIndex = 0; dayIndex < STATIC_WINDOW_DAYS; dayIndex++) {
     const puzzle = await puzzles.getDaily(dateKey);
+    await assertPlayablePuzzleEndpoints(puzzle.start, puzzle.end, graph, dateKey);
     const publicPuzzle = toPublicPuzzle(puzzle);
 
     const stepContext: StepContextResponse = {

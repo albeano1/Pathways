@@ -279,9 +279,14 @@ function scoreCandidate(
   edges: RenderGraphEdge[],
   minGap: number,
   nodeW: number,
-  compact: boolean
+  compact: boolean,
+  spineBias = false
 ): number {
-  let score = Math.abs(x - idealX) * 0.5;
+  let score = Math.abs(x - idealX) * (spineBias ? 1.2 : 0.5);
+
+  if (spineBias) {
+    score += Math.abs(x) * 1.5;
+  }
 
   for (const [, pos] of positions) {
     if (overlapsNode(x, y, variant, pos.x, pos.y, pos.variant, minGap, nodeW, compact)) {
@@ -302,21 +307,37 @@ function pickPlacementX(
   minGap: number,
   panelWidth: number,
   nodeW: number,
-  compact: boolean
+  compact: boolean,
+  spineBias = false
 ): number {
   const step = nodeW + minGap;
   const maxOffset = Math.max(step * 4, panelWidth * 0.45);
   const candidates = [idealX];
 
   for (let offset = step; offset <= maxOffset; offset += step) {
-    candidates.push(idealX + offset, idealX - offset);
+    if (spineBias) {
+      candidates.push(idealX - offset, idealX + offset);
+    } else {
+      candidates.push(idealX + offset, idealX - offset);
+    }
   }
 
   let bestX = idealX;
   let bestScore = Number.POSITIVE_INFINITY;
 
   for (const x of candidates) {
-    const score = scoreCandidate(x, y, variant, idealX, positions, edges, minGap, nodeW, compact);
+    const score = scoreCandidate(
+      x,
+      y,
+      variant,
+      idealX,
+      positions,
+      edges,
+      minGap,
+      nodeW,
+      compact,
+      spineBias
+    );
     if (score < bestScore) {
       bestScore = score;
       bestX = x;
@@ -348,7 +369,8 @@ export function computeGraphLayout(
   initialHops: number,
   startWord: string,
   panelWidth = 720,
-  pinned = new Map<string, PinnedPosition>()
+  pinned = new Map<string, PinnedPosition>(),
+  spineNodeIds: ReadonlySet<string> = new Set()
 ): GraphLayout {
   if (nodes.length === 0) {
     return { nodes: [], edges: [], width: NODE_W, height: panelBudget, newPositions: [] };
@@ -358,6 +380,7 @@ export function computeGraphLayout(
   const nodeW = layoutNodeWidth(compact);
   const space = spacing(nodes.length, compact);
   const { parents } = buildAdjacency(edges);
+  const useSpineLayout = spineNodeIds.size > 0 && compact;
 
   const startNode = nodes.find((node) => node.word === startWord || node.variant === "start");
   const startHops = startNode?.hopsToEnd ?? initialHops;
@@ -428,12 +451,26 @@ export function computeGraphLayout(
       y = Math.max(y, ...rowNeighbors.map(([, pos]) => pos.y));
     }
 
+    const onSpine = useSpineLayout && spineNodeIds.has(node.id);
     const idealX =
-      parentPositions.length > 0
-        ? average(parentPositions.map((p) => p.x))
-        : 0;
+      onSpine
+        ? 0
+        : parentPositions.length > 0
+          ? average(parentPositions.map((p) => p.x))
+          : 0;
 
-    const x = pickPlacementX(idealX, y, node.variant, positions, edges, space.minGap, panelWidth, nodeW, compact);
+    const x = pickPlacementX(
+      idealX,
+      y,
+      node.variant,
+      positions,
+      edges,
+      space.minGap,
+      panelWidth,
+      nodeW,
+      compact,
+      onSpine
+    );
     positions.set(node.id, { x, y, variant: node.variant });
     newPositions.push({ id: node.id, x, y });
   }
@@ -531,7 +568,8 @@ export function layoutGraphTop(nodes: PositionedNode[]): number {
 export function graphCanvasSize(
   layout: GraphLayout,
   panelWidth = Number.POSITIVE_INFINITY,
-  panelHeight = 0
+  panelHeight = 0,
+  centerGraphHorizontally = false
 ): { width: number; height: number } {
   const compact = isCompactLayout(panelWidth, panelHeight);
   const { bleedBottom, canvasBottom } = layoutPadding(compact);
@@ -539,8 +577,15 @@ export function graphCanvasSize(
   const contentTop = layoutGraphTop(layout.nodes);
   const contentBottom = layoutGraphBottom(layout.nodes, compact);
   const contentHeight = contentBottom - contentTop + canvasBottom;
+  const start = layout.nodes.find((node) => node.variant === "start");
+  let width = Math.max(extents.width, layout.width);
+  const useStartCenter = Boolean(start) && (centerGraphHorizontally || !compact);
+  if (useStartCenter && start) {
+    const x = Math.max(width / 2 - start.x, -extents.minX);
+    width = Math.max(width, extents.maxX + x);
+  }
   return {
-    width: Math.max(extents.width, layout.width),
+    width,
     height: contentHeight + EDGE_BLEED_TOP + bleedBottom,
   };
 }
@@ -555,9 +600,18 @@ export function graphCanvasOffset(
   const extents = measureGraphExtents(layout.nodes, compact);
   const contentTop = layoutGraphTop(layout.nodes);
   const start = layout.nodes.find((node) => node.variant === "start");
-  const canvasWidth = Math.max(extents.width, layout.width);
   const useStartCenter = Boolean(start) && (centerGraphHorizontally || !compact);
-  const x = useStartCenter ? canvasWidth / 2 - start!.x : -extents.minX;
+  let canvasWidth = Math.max(extents.width, layout.width);
+  if (useStartCenter && start) {
+    const centeredX = canvasWidth / 2 - start.x;
+    const xFit = Math.max(centeredX, -extents.minX);
+    canvasWidth = Math.max(canvasWidth, extents.maxX + xFit);
+  }
+  let x = useStartCenter && start ? canvasWidth / 2 - start.x : -extents.minX;
+  if (useStartCenter) {
+    x = Math.max(x, -extents.minX);
+    x = Math.min(x, canvasWidth - extents.maxX);
+  }
   return {
     x,
     y: EDGE_BLEED_TOP + CANVAS_PAD_TOP - contentTop,

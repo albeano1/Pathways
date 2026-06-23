@@ -57,7 +57,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
     }
   });
 
-  app.get("/api/puzzle", (req, res) => {
+  app.get("/api/puzzle", async (req, res) => {
     try {
       const { graph, puzzles } = getServices();
       const start = String(req.query.start ?? "").trim().toLowerCase();
@@ -103,7 +103,7 @@ export function createApp(options: { serveClient?: boolean } = {}) {
         ? dateParam
         : getPuzzleDateKey();
       const puzzleDate = clampPuzzleDateKey(requestedDate);
-      const puzzle = puzzles.getDaily(puzzleDate);
+      const puzzle = await puzzles.getDaily(puzzleDate);
       graph.warmEndDistances(puzzle.end);
 
       res.set("Cache-Control", "no-store");

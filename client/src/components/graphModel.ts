@@ -28,8 +28,10 @@ export function buildRenderGraph(input: {
   rejected: RejectedBranch[];
   currentNodeId: string;
   complete?: boolean;
+  includeRejected?: boolean;
 }): { nodes: RenderGraphNode[]; edges: RenderGraphEdge[] } {
-  const { start, end, nodes, edges, rejected, currentNodeId, complete } = input;
+  const { start, end, nodes, edges, rejected, currentNodeId, complete, includeRejected = true } =
+    input;
   const won = complete === true || nodes.some((node) => node.word === end);
 
   const renderNodes: RenderGraphNode[] = nodes.map((node) => {
@@ -57,7 +59,7 @@ export function buildRenderGraph(input: {
     hopsToEnd: edge.hopsToEnd,
   }));
 
-  for (const attempt of rejected) {
+  for (const attempt of includeRejected ? rejected : []) {
     const parent = nodeByWord(nodes, attempt.from);
     if (!parent) continue;
     const rejectNodeId = `reject:${attempt.id}`;

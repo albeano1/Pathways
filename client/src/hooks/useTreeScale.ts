@@ -21,7 +21,8 @@ export function useTreeScale(
   treeSize: TreeContentSize,
   fixedScaleMode = false,
   compactNodes = false,
-  fitOverflow = false
+  fitOverflow = false,
+  fillVertical = false
 ): number {
   const [scale, setScale] = useState(1);
   const lockedScaleRef = useRef<number | null>(null);
@@ -70,6 +71,13 @@ export function useTreeScale(
         if (fitOverflow) {
           const fitScale = Math.min(scaleW, scaleH);
           clamped = Math.max(MIN_SCALE, Math.min(clamped, fitScale));
+        } else if (fillVertical) {
+          const scaledHeight = contentHeight * clamped;
+          const targetHeight = availableHeight * 0.92;
+          if (scaledHeight < targetHeight) {
+            const fillScale = targetHeight / contentHeight;
+            clamped = Math.min(fillScale, 1.35);
+          }
         }
       } else {
         const fitScale = Math.min(scaleW, scaleH);
@@ -91,7 +99,15 @@ export function useTreeScale(
       observer.disconnect();
       window.removeEventListener("resize", update);
     };
-  }, [viewportRef, treeSize.width, treeSize.height, fixedScaleMode, compactNodes, fitOverflow]);
+  }, [
+    viewportRef,
+    treeSize.width,
+    treeSize.height,
+    fixedScaleMode,
+    compactNodes,
+    fitOverflow,
+    fillVertical,
+  ]);
 
   return scale;
 }

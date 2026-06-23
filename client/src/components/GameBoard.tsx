@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { getDebugPuzzleFromUrl } from "../debugPuzzle";
 import { clearDailySession } from "../dailyStorage";
 import { getWinStreak } from "../solveStats";
 import { useGame } from "../hooks/useGame";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useKeyboardInset } from "../hooks/useVisualViewport";
 import { GraphView } from "./GraphView";
+import { MobileDock, type MobileGraphView } from "./MobileDock";
+import { PathView } from "./PathView";
 import { WinPopup } from "./WinPopup";
 import { WordInfoSheet } from "./WordInfoSheet";
 import { WordInput } from "./WordInput";
@@ -11,6 +15,12 @@ import { WordInput } from "./WordInput";
 export function GameBoard() {
   const debugPuzzle = getDebugPuzzleFromUrl();
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<MobileGraphView>("path");
+  const [showRejected, setShowRejected] = useState(false);
+  const mobileGoalBarRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMediaQuery("(max-width: 720px)");
+  const isPortrait = useMediaQuery("(orientation: portrait)");
+  const keyboardInset = useKeyboardInset();
   const {
     puzzle,
     graphNodes,
@@ -73,8 +83,24 @@ export function GameBoard() {
       ? proximityHops
       : undefined;
 
+  const wordInput = (
+    <WordInput
+      disabled={!playing}
+      submitting={submitting}
+      onTypingStart={startTimer}
+      onSubmit={submitWord}
+    />
+  );
+
   return (
-    <div className="game-board">
+    <div
+      className={["game-board", isMobile ? "game-board--mobile" : ""].filter(Boolean).join(" ")}
+      style={
+        isMobile && keyboardInset > 0
+          ? ({ "--keyboard-inset": `${keyboardInset}px` } as CSSProperties)
+          : undefined
+      }
+    >
       <section className="panel panel--play">
         {debugPuzzle && (
           <p className="game-board__debug-tag">
@@ -98,30 +124,58 @@ export function GameBoard() {
         ) : null}
 
         <div className="play-stage">
-          <GraphView
-            start={puzzle.start}
-            end={puzzle.end}
-            graphNodes={graphNodes}
-            graphEdges={graphEdges}
-            rejectedBranches={rejectedBranches}
-            currentNodeId={currentNodeId}
-            currentWord={currentWord}
-            initialHops={puzzle.optimalHops}
-            complete={status === "won"}
-            closeCount={closeCount}
-            onPersistLayout={persistLayout}
-            onWordSelect={setSelectedWord}
-          />
+          {isMobile && mobileView === "path" ? (
+            <PathView
+              start={puzzle.start}
+              end={puzzle.end}
+              nodes={graphNodes}
+              edges={graphEdges}
+              currentNodeId={currentNodeId}
+              complete={status === "won"}
+              onWordSelect={setSelectedWord}
+            />
+          ) : (
+            <GraphView
+              start={puzzle.start}
+              end={puzzle.end}
+              graphNodes={graphNodes}
+              graphEdges={graphEdges}
+              rejectedBranches={rejectedBranches}
+              currentNodeId={currentNodeId}
+              currentWord={currentWord}
+              initialHops={puzzle.optimalHops}
+              complete={status === "won"}
+              closeCount={isMobile ? undefined : closeCount}
+              hideGoalBar={isMobile}
+              hideLegendChrome={isMobile && isPortrait}
+              externalGoalBarRef={mobileGoalBarRef}
+              includeRejected={!isMobile || showRejected}
+              showPortraitGuide={!isMobile}
+              onPersistLayout={persistLayout}
+              onWordSelect={setSelectedWord}
+            />
+          )}
         </div>
 
-        <div className="play-dock">
-          <WordInput
-            disabled={!playing}
-            submitting={submitting}
-            onTypingStart={startTimer}
-            onSubmit={submitWord}
-          />
-        </div>
+        {isMobile ? (
+          <MobileDock
+            end={puzzle.end}
+            complete={status === "won"}
+            closeCount={closeCount}
+            mobileView={mobileView}
+            rejectedCount={rejectedBranches.length}
+            showRejected={showRejected}
+            onToggleRejected={() => setShowRejected((value) => !value)}
+            onViewChange={setMobileView}
+            onWordSelect={setSelectedWord}
+            goalBarRef={mobileGoalBarRef}
+            showLegend={isPortrait}
+          >
+            {wordInput}
+          </MobileDock>
+        ) : (
+          <div className="play-dock">{wordInput}</div>
+        )}
 
         <WordInfoSheet word={selectedWord} onClose={() => setSelectedWord(null)} />
 

@@ -20,7 +20,7 @@ export class PuzzleService {
     this.generator = new PuzzleGenerator(graph);
   }
 
-  getDaily(dateKey?: string): Puzzle {
+  async getDaily(dateKey?: string): Promise<Puzzle> {
     const puzzleDate = dateKey ?? getPuzzleDateKey();
     const nextPuzzleAt = (
       dateKey ? getNextPuzzleAtForDateKey(puzzleDate) : getNextPuzzleAt()

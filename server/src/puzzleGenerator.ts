@@ -13,6 +13,7 @@ import {
 } from "../../shared/puzzleRules.js";
 import { hashString, mulberry32 } from "../../shared/dailyPuzzle.js";
 import type { Difficulty, Puzzle } from "../../shared/types.js";
+import { lemmaHasDefinition } from "./dictionary.js";
 import type { GraphService } from "./graph.js";
 
 export interface GeneratePuzzleOptions {
@@ -21,10 +22,17 @@ export interface GeneratePuzzleOptions {
   maxAttempts?: number;
 }
 
-export class PuzzleGenerator {
-  constructor(private readonly graph: GraphService) {}
+export type PuzzleDefinitionCheck = (lemma: string) => Promise<boolean>;
 
-  generate(options: GeneratePuzzleOptions = {}): Omit<Puzzle, "puzzleDate" | "nextPuzzleAt"> {
+export class PuzzleGenerator {
+  constructor(
+    private readonly graph: GraphService,
+    private readonly hasDefinition: PuzzleDefinitionCheck = lemmaHasDefinition
+  ) {}
+
+  async generate(
+    options: GeneratePuzzleOptions = {}
+  ): Promise<Omit<Puzzle, "puzzleDate" | "nextPuzzleAt">> {
     const exclude = new Set(options.excludeIds ?? []);
     const maxAttempts = options.maxAttempts ?? RANDOM_PUZZLE_MAX_ATTEMPTS;
     const rng = mulberry32(Date.now() >>> 0);
@@ -36,10 +44,10 @@ export class PuzzleGenerator {
     });
   }
 
-  generateDaily(puzzleDate: string, nextPuzzleAt: string): Puzzle {
+  async generateDaily(puzzleDate: string, nextPuzzleAt: string): Promise<Puzzle> {
     const rng = mulberry32(hashString(puzzleDate));
     const targetHops = pickDailyTargetHops(rng);
-    const puzzle = this.generateFromRng(rng, {
+    const puzzle = await this.generateFromRng(rng, {
       maxAttempts: DAILY_PUZZLE_MAX_ATTEMPTS,
       targetHops,
     });
@@ -47,7 +55,7 @@ export class PuzzleGenerator {
     return { ...puzzle, puzzleDate, nextPuzzleAt };
   }
 
-  private generateFromRng(
+  private async generateFromRng(
     rng: () => number,
     options: {
       difficulty?: Difficulty;
@@ -55,7 +63,7 @@ export class PuzzleGenerator {
       maxAttempts?: number;
       targetHops?: number;
     }
-  ): Omit<Puzzle, "puzzleDate" | "nextPuzzleAt"> {
+  ): Promise<Omit<Puzzle, "puzzleDate" | "nextPuzzleAt">> {
     const exclude = options.exclude ?? new Set<string>();
     const maxAttempts = options.maxAttempts ?? RANDOM_PUZZLE_MAX_ATTEMPTS;
     const preferredHops =
@@ -77,7 +85,7 @@ export class PuzzleGenerator {
         if (ends.length === 0) continue;
 
         const end = ends[Math.floor(rng() * ends.length)]!;
-        const puzzle = this.buildPuzzleFromPair(start, end, options.difficulty);
+        const puzzle = await this.buildPuzzleFromPair(start, end, options.difficulty);
         if (!puzzle) continue;
         if (exclude.has(puzzle.id)) continue;
         return puzzle;
@@ -109,15 +117,21 @@ export class PuzzleGenerator {
     });
   }
 
-  private buildPuzzleFromPair(
+  private async buildPuzzleFromPair(
     start: string,
     end: string,
     difficulty?: Difficulty
-  ): Omit<Puzzle, "puzzleDate" | "nextPuzzleAt"> | null {
+  ): Promise<Omit<Puzzle, "puzzleDate" | "nextPuzzleAt"> | null> {
     if (start === end) return null;
     if (!this.graph.isEligiblePuzzleEndpoint(start) || !this.graph.isEligiblePuzzleEndpoint(end)) {
       return null;
     }
+
+    const [startDefined, endDefined] = await Promise.all([
+      this.hasDefinition(start),
+      this.hasDefinition(end),
+    ]);
+    if (!startDefined || !endDefined) return null;
 
     const samplePath = this.graph.shortestPath(start, end);
     if (!samplePath) return null;

@@ -168,9 +168,15 @@ async function buildDatabase(selectedWords: Set<string>): Promise<void> {
     "INSERT INTO edges (from_id, to_id, relation, weight) VALUES (?, ?, ?, ?)"
   );
 
+  const wordIdByLemma = new Map<string, number>();
   const ensureWord = db.transaction((lemma: string) => {
+    const cached = wordIdByLemma.get(lemma);
+    if (cached !== undefined) return cached;
+
     insertWord.run(lemma, lemma);
-    return (getWordId.get(lemma) as { id: number }).id;
+    const id = (getWordId.get(lemma) as { id: number }).id;
+    wordIdByLemma.set(lemma, id);
+    return id;
   });
 
   const input = fs.createReadStream(CSV_PATH).pipe(createGunzip());

@@ -69,6 +69,65 @@ export function nodeByWord(nodes: GraphNode[], word: string): GraphNode | undefi
   return nodes.find((node) => node.word === word);
 }
 
+export interface GraphIndex {
+  nodeById: Map<string, GraphNode>;
+  nodeIdByWord: Map<string, string>;
+  confirmedEdgeKeys: Set<string>;
+  childrenByParent: Map<string, string[]>;
+  parentsByChild: Map<string, string[]>;
+  explorePath: string[];
+  exploreKeys: string[];
+}
+
+export function buildGraphIndex(nodes: GraphNode[], edges: GraphEdge[]): GraphIndex {
+  const nodeById = new Map<string, GraphNode>();
+  const nodeIdByWord = new Map<string, string>();
+  for (const node of nodes) {
+    nodeById.set(node.id, node);
+    if (!nodeIdByWord.has(node.word)) {
+      nodeIdByWord.set(node.word, node.id);
+    }
+  }
+
+  const confirmedEdgeKeys = new Set<string>();
+  const childrenByParent = new Map<string, string[]>();
+  const parentsByChild = new Map<string, string[]>();
+  for (const edge of edges) {
+    if (edge.rejected) continue;
+    confirmedEdgeKeys.add(`${edge.fromNodeId}|${edge.toNodeId}`);
+    const children = childrenByParent.get(edge.fromNodeId) ?? [];
+    children.push(edge.toNodeId);
+    childrenByParent.set(edge.fromNodeId, children);
+    const parents = parentsByChild.get(edge.toNodeId) ?? [];
+    parents.push(edge.fromNodeId);
+    parentsByChild.set(edge.toNodeId, parents);
+  }
+
+  const explore = buildExploreFromGraph(nodes);
+  return {
+    nodeById,
+    nodeIdByWord,
+    confirmedEdgeKeys,
+    childrenByParent,
+    parentsByChild,
+    explorePath: explore.path,
+    exploreKeys: explore.keys,
+  };
+}
+
+export function nodeByWordInIndex(index: GraphIndex, word: string): GraphNode | undefined {
+  const id = index.nodeIdByWord.get(word);
+  return id ? index.nodeById.get(id) : undefined;
+}
+
+export function hasGraphEdgeInIndex(
+  index: GraphIndex,
+  fromNodeId: string,
+  toNodeId: string
+): boolean {
+  return index.confirmedEdgeKeys.has(`${fromNodeId}|${toNodeId}`);
+}
+
 export function hasGraphEdge(
   edges: GraphEdge[],
   fromNodeId: string,

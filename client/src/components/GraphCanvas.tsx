@@ -33,7 +33,12 @@ export const GraphCanvas = memo(function GraphCanvas({
   onWordSelect,
 }: GraphCanvasProps) {
   const offset = graphCanvasOffset(layout, panelWidth, panelHeight, centerGraphHorizontally);
-  const { width, height } = graphCanvasSize(layout, panelWidth, panelHeight);
+  const { width, height } = graphCanvasSize(
+    layout,
+    panelWidth,
+    panelHeight,
+    centerGraphHorizontally
+  );
   const nodeById = useMemo(
     () => new Map(layout.nodes.map((node) => [node.id, node])),
     [layout.nodes]
@@ -96,6 +101,7 @@ export const GraphCanvas = memo(function GraphCanvas({
         <div
           key={node.id}
           className="tree-canvas__node graph-canvas__node"
+          data-node-id={node.id}
           style={
             {
               left: node.x + offset.x,

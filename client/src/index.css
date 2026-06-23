@@ -218,6 +218,11 @@ button {
   pointer-events: auto;
 }
 
+.graph-view--scrollable .path-tree__scale-inner--align-left {
+  left: 0;
+  transform-origin: top left;
+}
+
 .graph-view--mobile .path-tree__scale-inner--align-left,
 .graph-view--portrait .path-tree__scale-inner--align-left {
   left: 0;
@@ -343,6 +348,26 @@ button {
     inset 2px 2px 5px rgba(15, 23, 42, 0.1),
     inset -1px -1px 3px rgba(255, 255, 255, 0.8),
     0 10px 28px rgba(15, 23, 42, 0.18);
+}
+
+.pathway-legend-sheet--dock {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 40;
+  max-height: min(52vh, 360px);
+}
+
+.pathway-legend-dismiss {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
 }
 
 .pathway-legend-sheet__close {
@@ -1516,4 +1541,342 @@ button {
     top: 10px;
     left: 10px;
   }
+}
+
+/* Mobile UX enhancements */
+
+.game-board--mobile .panel--play {
+  padding-bottom: var(--keyboard-inset, 0px);
+}
+
+.game-board--mobile .play-stage {
+  flex: 1;
+  min-height: 0;
+}
+
+.mobile-dock {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px max(6px, env(safe-area-inset-bottom, 6px));
+  background: linear-gradient(to top, rgba(248, 250, 252, 0.98) 85%, rgba(248, 250, 252, 0));
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.mobile-dock__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobile-dock__toolbar-start {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-dock__toolbar-end {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.mobile-dock__toolbar-end .pathway-legend-btn {
+  margin: 0;
+}
+
+.mobile-dock__view-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(226, 232, 240, 0.7);
+}
+
+.mobile-dock__view-btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mobile-dock__view-btn--active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.mobile-dock__rejected-toggle {
+  padding: 4px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mobile-dock__input .word-input {
+  width: 100%;
+  margin: 0;
+}
+
+.mobile-dock .goal-bar {
+  width: 100%;
+  margin: 0;
+}
+
+.mobile-dock .goal-bar__word {
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px 10px;
+}
+
+.mobile-dock .goal-bar__label-row {
+  flex-direction: row;
+  justify-content: center;
+  gap: 0.35em;
+}
+
+.mobile-dock .goal-bar__text {
+  font-size: 1.2rem;
+}
+
+.path-view {
+  height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px 8px;
+}
+
+.path-view__branch-node {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 120px;
+}
+
+.path-view__branch-node--start,
+.path-view__branch-node--confirmed,
+.path-view__branch-node--current,
+.path-view__branch-node--win-tip {
+  border-radius: 18px;
+  border: 3px solid transparent;
+  overflow: hidden;
+}
+
+.path-view__branch-node--start {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
+.path-view__branch-node--confirmed {
+  border-color: #64748b;
+  background: #f8fafc;
+}
+
+.path-view__branch-node--current,
+.path-view__branch-node--win-tip {
+  border-color: #475569;
+  background: #f8fafc;
+}
+
+.path-view__branch-node--start .path-node__word,
+.path-view__branch-node--confirmed .path-node__word,
+.path-view__branch-node--current .path-node__word,
+.path-view__branch-node--win-tip .path-node__word {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.path-view__branch-route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 12px;
+  margin-top: -4px;
+}
+
+.path-view__branch-route-label {
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.path-view__branch-node--start .path-view__branch-route-label {
+  color: #3b82f6;
+}
+
+.path-view__branch-route-select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 28px 6px 8px;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #1e293b;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+.path-view__branch-node--start .path-view__branch-route-select {
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1e3a8a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232563eb' d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+}
+
+.path-view__branch-route-select:focus {
+  outline: 2px solid rgba(71, 85, 105, 0.35);
+  outline-offset: 1px;
+}
+
+.game-board--mobile .path-view .path-node__word,
+.game-board--mobile .path-view .path-node--labeled .path-node__word {
+  min-width: 120px;
+  padding: 12px 26px 16px;
+  font-size: 1.22rem;
+  border-radius: 18px;
+  border-width: 3px;
+  gap: 3px;
+}
+
+.game-board--mobile .path-view__branch-node--start .path-node--labeled .path-node__word,
+.game-board--mobile .path-view__branch-node--confirmed .path-node--labeled .path-node__word,
+.game-board--mobile .path-view__branch-node--current .path-node--labeled .path-node__word,
+.game-board--mobile .path-view__branch-node--win-tip .path-node--labeled .path-node__word {
+  padding: 12px 26px 8px;
+  border-radius: 0;
+  border-width: 0;
+}
+
+.game-board--mobile .path-view__branch-route-select {
+  font-size: 0.82rem;
+  padding: 7px 30px 7px 10px;
+}
+
+.game-board--mobile .path-view .path-node__hint {
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+}
+
+.path-view__chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-height: min-content;
+}
+
+.path-view__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.path-view__connector {
+  width: 3px;
+  height: 20px;
+  background: linear-gradient(to bottom, #cbd5e1, #94a3b8);
+  border-radius: 2px;
+}
+
+.path-view__connector--goal {
+  background: linear-gradient(to bottom, #94a3b8, rgba(22, 163, 74, 0.5));
+}
+
+.path-tree__tree-area {
+  position: relative;
+}
+
+.scroll-affordance {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.scroll-affordance--left {
+  left: 0;
+  background: linear-gradient(to right, rgba(248, 250, 252, 0.95), transparent);
+}
+
+.scroll-affordance--right {
+  right: 0;
+  background: linear-gradient(to left, rgba(248, 250, 252, 0.95), transparent);
+}
+
+.scroll-affordance--left::after,
+.scroll-affordance--right::after {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.scroll-affordance--left::after {
+  content: "‹";
+  left: 6px;
+}
+
+.scroll-affordance--right::after {
+  content: "›";
+  right: 6px;
+}
+
+.portrait-guide-line {
+  z-index: 1;
+}
+
+.graph-view--external-goal {
+  height: 100%;
+}
+
+.graph-view--external-goal .path-tree__tree-area {
+  bottom: 0;
+  height: 100%;
+}
+
+.graph-view--scrollable.graph-view--external-goal .path-tree__tree-area {
+  min-height: 100%;
+}
+
+@media (max-height: 700px) {
+  .game-board--mobile .path-node__word {
+    padding: 14px 20px;
+    font-size: 1.1rem;
+  }
+
+  .game-board--mobile .mobile-dock {
+    gap: 4px;
+    padding-top: 4px;
+  }
+
 }

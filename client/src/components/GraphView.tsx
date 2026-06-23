@@ -1,5 +1,6 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { GraphEdge, GraphNode, RejectedBranch } from "../../../shared/types";
+import { activePathNodeIds } from "../api/activePath";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTreeScale } from "../hooks/useTreeScale";
 import { PathwayLegendButton } from "./PathwayLegendButton";
@@ -7,7 +8,17 @@ import { RelationLegend } from "./RelationLegend";
 import { GoalBar } from "./GoalBar";
 import { GraphCanvas } from "./GraphCanvas";
 import { buildRenderGraph } from "./graphModel";
-import { computeGraphLayout, graphCanvasSize, isCompactLayout, isHorizontalLayout, useFixedGraphScale, useScrollableGraph, type PinnedPosition } from "./graphLayout";
+import {
+  computeGraphLayout,
+  graphCanvasSize,
+  isCompactLayout,
+  isHorizontalLayout,
+  useFixedGraphScale,
+  useScrollableGraph,
+  type PinnedPosition,
+} from "./graphLayout";
+import { PortraitGuideLine } from "./PortraitGuideLine";
+import { ScrollAffordances } from "./ScrollAffordances";
 import { TrunkGoalLink } from "./TrunkGoalLink";
 
 interface GraphViewProps {
@@ -21,6 +32,11 @@ interface GraphViewProps {
   initialHops: number;
   complete?: boolean;
   closeCount?: number;
+  hideGoalBar?: boolean;
+  externalGoalBarRef?: RefObject<HTMLDivElement | null>;
+  includeRejected?: boolean;
+  showPortraitGuide?: boolean;
+  hideLegendChrome?: boolean;
   onPersistLayout?: (positions: Array<{ id: string; x: number; y: number }>) => void;
   onWordSelect?: (word: string) => void;
 }
@@ -36,12 +52,18 @@ export function GraphView({
   initialHops,
   complete,
   closeCount,
+  hideGoalBar = false,
+  externalGoalBarRef,
+  includeRejected = true,
+  showPortraitGuide = false,
+  hideLegendChrome = false,
   onPersistLayout,
   onWordSelect,
 }: GraphViewProps) {
   const pathTreeRef = useRef<HTMLDivElement>(null);
   const treeAreaRef = useRef<HTMLDivElement>(null);
-  const goalBarRef = useRef<HTMLDivElement>(null);
+  const internalGoalBarRef = useRef<HTMLDivElement>(null);
+  const goalBarRef = externalGoalBarRef ?? internalGoalBarRef;
   const persistedLayoutKey = useRef("");
   const isMobile = useMediaQuery("(max-width: 720px)");
 
@@ -54,6 +76,14 @@ export function GraphView({
   const compactLayout = isCompactLayout(panelWidth, panelBudget);
   const fixedScaleMode = useFixedGraphScale(panelWidth, panelBudget, isMobile);
   const scrollableGraph = useScrollableGraph(panelWidth, panelBudget, isMobile);
+
+  const spineNodeIds = useMemo(
+    () =>
+      scrollableGraph
+        ? activePathNodeIds(graphNodes, graphEdges, start, currentNodeId)
+        : new Set<string>(),
+    [scrollableGraph, graphNodes, graphEdges, start, currentNodeId]
+  );
 
   const pinned = useMemo(() => {
     const map = new Map<string, PinnedPosition>();
@@ -75,8 +105,18 @@ export function GraphView({
         rejected: rejectedBranches,
         currentNodeId,
         complete: won,
+        includeRejected,
       }),
-    [start, end, graphNodes, graphEdges, rejectedBranches, currentNodeId, won]
+    [
+      start,
+      end,
+      graphNodes,
+      graphEdges,
+      rejectedBranches,
+      currentNodeId,
+      won,
+      includeRejected,
+    ]
   );
 
   const layout = useMemo(
@@ -88,9 +128,10 @@ export function GraphView({
         initialHops,
         start,
         panelWidth,
-        pinned
+        pinned,
+        spineNodeIds
       ),
-    [renderGraph, panelBudget, initialHops, start, panelWidth, pinned]
+    [renderGraph, panelBudget, initialHops, start, panelWidth, pinned, spineNodeIds]
   );
 
   useLayoutEffect(() => {
@@ -104,22 +145,62 @@ export function GraphView({
     onPersistLayout(toPersist);
   }, [layout.newPositions, onPersistLayout, graphNodes]);
 
-  const canvasSize = graphCanvasSize(layout, panelWidth, panelBudget);
-  const scale = useTreeScale(treeAreaRef, canvasSize, fixedScaleMode, compactLayout, horizontalLayout);
+  const canvasSize = graphCanvasSize(
+    layout,
+    panelWidth,
+    panelBudget,
+    scrollableGraph
+  );
+  const rawScale = useTreeScale(
+    treeAreaRef,
+    canvasSize,
+    fixedScaleMode,
+    compactLayout,
+    horizontalLayout,
+    false
+  );
+  const scale = scrollableGraph && isMobile ? Math.min(1, rawScale) : rawScale;
+
+  useLayoutEffect(() => {
+    if (!scrollableGraph || !currentNodeId) return;
+    const treeArea = treeAreaRef.current;
+    if (!treeArea) return;
+
+    const nodeEl = treeArea.querySelector<HTMLElement>(`[data-node-id="${currentNodeId}"]`);
+    if (!nodeEl) return;
+
+    const treeRect = treeArea.getBoundingClientRect();
+    const nodeRect = nodeEl.getBoundingClientRect();
+    const nodeCenterX = nodeRect.left + nodeRect.width / 2 - treeRect.left + treeArea.scrollLeft;
+    const nodeCenterY = nodeRect.top + nodeRect.height / 2 - treeRect.top + treeArea.scrollTop;
+
+    const targetScrollLeft = nodeCenterX - treeArea.clientWidth / 2;
+    const targetScrollTop = nodeCenterY - treeArea.clientHeight / 2;
+
+    treeArea.scrollTo({
+      left: Math.max(0, targetScrollLeft),
+      top: Math.max(0, targetScrollTop),
+      behavior: "smooth",
+    });
+  }, [scrollableGraph, currentNodeId, layout, scale, canvasSize]);
 
   useLayoutEffect(() => {
     const panel = pathTreeRef.current;
     const treeArea = treeAreaRef.current;
-    const goalBar = goalBarRef.current;
+    const goalBar = hideGoalBar ? null : goalBarRef.current;
     if (!panel || !treeArea) return;
 
     const measure = () => {
       const goalBarHeight = goalBar?.offsetHeight ?? 0;
       const panelHeight = panel.clientHeight;
-      const goalFootHeight = goalBarHeight + goalGapHeight;
+      const goalFootHeight = hideGoalBar ? 0 : goalBarHeight + goalGapHeight;
       setPanelBudget(Math.max(0, panelHeight - goalFootHeight));
       setPanelWidth(Math.max(280, treeArea.clientWidth));
-      treeArea.style.bottom = `${goalFootHeight}px`;
+      if (!hideGoalBar) {
+        treeArea.style.bottom = `${goalFootHeight}px`;
+      } else {
+        treeArea.style.bottom = "0";
+      }
       treeArea.style.top = "0";
       treeArea.style.height = "";
     };
@@ -130,11 +211,19 @@ export function GraphView({
     observer.observe(treeArea);
     if (goalBar) observer.observe(goalBar);
     return () => observer.disconnect();
-  }, [goalGapHeight]);
+  }, [goalGapHeight, hideGoalBar, goalBarRef]);
 
   return (
     <div
-      className={["path-tree graph-view", won ? "path-tree--won" : "", isMobile ? "graph-view--mobile" : "", isPortrait ? "graph-view--portrait" : "", horizontalLayout ? "graph-view--horizontal" : "", scrollableGraph ? "graph-view--scrollable" : ""]
+      className={[
+        "path-tree graph-view",
+        won ? "path-tree--won" : "",
+        isMobile ? "graph-view--mobile" : "",
+        isPortrait ? "graph-view--portrait" : "",
+        horizontalLayout ? "graph-view--horizontal" : "",
+        scrollableGraph ? "graph-view--scrollable" : "",
+        hideGoalBar ? "graph-view--external-goal" : "",
+      ]
         .filter(Boolean)
         .join(" ")}
       ref={pathTreeRef}
@@ -147,9 +236,23 @@ export function GraphView({
         />
       )}
       <div className="path-tree__tree-area" ref={treeAreaRef}>
-        <div className="graph-view__legend-chrome">
-          {isMobile ? <PathwayLegendButton /> : <RelationLegend />}
-        </div>
+        <ScrollAffordances containerRef={treeAreaRef} />
+        {showPortraitGuide && !hideGoalBar && (
+          <PortraitGuideLine
+            containerRef={pathTreeRef}
+            goalBarRef={goalBarRef}
+            layout={layout}
+            panelWidth={panelWidth}
+            panelHeight={panelBudget}
+            centerGraphHorizontally={scrollableGraph}
+            enabled={isPortrait && !won}
+          />
+        )}
+        {!hideLegendChrome && (
+          <div className="graph-view__legend-chrome">
+            {isMobile ? <PathwayLegendButton /> : <RelationLegend />}
+          </div>
+        )}
         <div
           className="path-tree__scale-wrap"
           style={{
@@ -158,11 +261,18 @@ export function GraphView({
           }}
         >
           <div
-            className="path-tree__scale-inner"
+            className={[
+              "path-tree__scale-inner",
+              scrollableGraph ? "path-tree__scale-inner--align-left" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={{
               width: canvasSize.width,
               height: canvasSize.height,
-              transform: `translateX(-50%) scale(${scale})`,
+              transform: scrollableGraph
+                ? `scale(${scale})`
+                : `translateX(-50%) scale(${scale})`,
             }}
           >
             <GraphCanvas
@@ -176,15 +286,17 @@ export function GraphView({
         </div>
       </div>
 
-      <div className="path-tree__goal-foot">
-        <GoalBar
-          ref={goalBarRef}
-          word={end}
-          complete={won}
-          closeCount={closeCount}
-          onWordSelect={onWordSelect}
-        />
-      </div>
+      {!hideGoalBar && (
+        <div className="path-tree__goal-foot">
+          <GoalBar
+            ref={internalGoalBarRef}
+            word={end}
+            complete={won}
+            closeCount={closeCount}
+            onWordSelect={onWordSelect}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -67,3 +67,8 @@ export async function fetchDictionaryEntry(lemma: string): Promise<DictionaryRes
   }
   return result;
 }
+
+export async function lemmaHasDefinition(lemma: string): Promise<boolean> {
+  const entry = await fetchDictionaryEntry(lemma);
+  return entry !== null && entry.senses.length > 0;
+}

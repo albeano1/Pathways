@@ -30,7 +30,7 @@ interface PublicPuzzle {
   nextPuzzleAt: string;
 }
 
-function toPublicPuzzle(puzzle: ReturnType<PuzzleService["getDaily"]>): PublicPuzzle {
+function toPublicPuzzle(puzzle: Awaited<ReturnType<PuzzleService["getDaily"]>>): PublicPuzzle {
   return {
     id: puzzle.id,
     start: puzzle.start,
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   let firstStepLookups = 0;
 
   for (let dayIndex = 0; dayIndex < STATIC_WINDOW_DAYS; dayIndex++) {
-    const puzzle = puzzles.getDaily(dateKey);
+    const puzzle = await puzzles.getDaily(dateKey);
     const publicPuzzle = toPublicPuzzle(puzzle);
 
     const stepContext: StepContextResponse = {
